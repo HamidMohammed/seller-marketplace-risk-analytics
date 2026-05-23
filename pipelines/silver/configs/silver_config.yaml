@@ -1,0 +1,43 @@
+# =========================================================
+# SILVER LAYER CONFIGURATION
+# =========================================================
+
+environment: local
+
+paths:
+  bronze:
+    orders: data/bronze/orders/
+    order_items: data/bronze/order_items/
+    customers: data/bronze/customers/
+    sellers: data/bronze/sellers/
+    products: data/bronze/products/
+    payments: data/bronze/payments/
+    reviews: data/bronze/reviews/
+    geolocation: data/bronze/geolocation/
+    category_translation: data/bronze/category_translation/
+    mql: data/bronze/mql/
+    closed_deals: data/bronze/closed_deals
+
+  silver:
+    orders: data/silver/orders/
+    order_items: data/silver/order_items/
+    customers: data/silver/customers/
+    sellers: data/silver/sellers/
+    products: data/silver/products/
+    payments: data/silver/payments/
+    reviews: data/silver/reviews/
+    geolocation: data/silver/geolocation/
+    category_translation: data/silver/category_translation/
+    mql: data/silver/mql/
+    closed_deals: data/silver/closed_deals
+
+metadata:
+  source_system: olist
+  transformation_version: v1
+
+validation:
+  fail_on_duplicates: true
+  fail_on_null_business_keys: true
+
+logging:
+  log_level: INFO

@@ -1,0 +1,196 @@
+/*
+===========================================================
+FACT TABLE: fct_order_payments
+COMPATIBLE: Microsoft SQL Server
+PROJECT: Olist Seller Intelligence Platform
+LAYER: Gold / Data Warehouse
+===========================================================
+*/
+
+CREATE TABLE gold.fct_order_payments
+(
+    -- =====================================================
+    -- SURROGATE PRIMARY KEY
+    -- =====================================================
+
+    payment_fact_sk BIGINT IDENTITY(1,1) NOT NULL,
+
+    -- =====================================================
+    -- BUSINESS IDENTIFIERS
+    -- =====================================================
+
+    order_id VARCHAR(50) NOT NULL,
+    payment_sequential INT NOT NULL,
+
+    -- =====================================================
+    -- DIMENSION FOREIGN KEYS
+    -- =====================================================
+
+    customer_sk_fk BIGINT NOT NULL,
+    seller_sk_fk BIGINT NOT NULL,
+
+    purchase_date_sk INT NOT NULL,
+    approval_date_sk INT NULL,
+
+    -- =====================================================
+    -- PAYMENT DETAILS
+    -- =====================================================
+
+    payment_type VARCHAR(30) NOT NULL,
+    payment_installments INT NOT NULL,
+
+    payment_value DECIMAL(12,2) NOT NULL,
+    total_order_value DECIMAL(12,2) NOT NULL,
+
+    -- =====================================================
+    -- DERIVED METRICS
+    -- =====================================================
+
+    payment_ratio DECIMAL(10,4) NULL,
+
+    is_installment_payment BIT NOT NULL,
+    high_installment_flag BIT NOT NULL,
+    split_payment_flag BIT NOT NULL,
+
+    payment_value_bucket VARCHAR(30) NOT NULL,
+    payment_behavior_segment VARCHAR(50) NOT NULL,
+
+    -- =====================================================
+    -- AUDIT METADATA
+    -- =====================================================
+
+    created_at DATETIME2 NOT NULL
+        DEFAULT GETDATE(),
+
+    -- =====================================================
+    -- PRIMARY KEY
+    -- =====================================================
+
+    CONSTRAINT PK_fct_order_payments
+        PRIMARY KEY (payment_fact_sk),
+
+    -- =====================================================
+    -- FOREIGN KEYS
+    -- =====================================================
+
+    CONSTRAINT FK_fct_order_payments_customer
+        FOREIGN KEY (customer_sk_fk)
+        REFERENCES gold.dim_customer(customer_sk),
+
+    CONSTRAINT FK_fct_order_payments_seller
+        FOREIGN KEY (seller_sk_fk)
+        REFERENCES gold.dim_seller(seller_sk),
+
+    CONSTRAINT FK_fct_order_payments_purchase_date
+        FOREIGN KEY (purchase_date_sk)
+        REFERENCES gold.dim_date(date_sk),
+
+    CONSTRAINT FK_fct_order_payments_approval_date
+        FOREIGN KEY (approval_date_sk)
+        REFERENCES gold.dim_date(date_sk),
+
+    -- =====================================================
+    -- CHECK CONSTRAINTS
+    -- =====================================================
+
+    CONSTRAINT CHK_payment_value_positive
+        CHECK (payment_value >= 0),
+
+    CONSTRAINT CHK_total_order_value_positive
+        CHECK (total_order_value >= 0),
+
+    CONSTRAINT CHK_payment_installments_positive
+        CHECK (payment_installments > 0),
+
+    CONSTRAINT CHK_payment_ratio_valid
+        CHECK (payment_ratio >= 0),
+
+    CONSTRAINT CHK_payment_type_valid
+        CHECK (
+            payment_type IN
+            (
+                'credit_card',
+                'debit_card',
+                'voucher',
+                'boleto',
+                'not_defined'
+            )
+        ),
+
+    CONSTRAINT CHK_payment_value_bucket_valid
+        CHECK (
+            payment_value_bucket IN
+            (
+                'Low Value',
+                'Medium Value',
+                'High Value',
+                'Premium Value'
+            )
+        ),
+
+    CONSTRAINT CHK_payment_behavior_segment_valid
+        CHECK (
+            payment_behavior_segment IN
+            (
+                'Full Payment',
+                'Moderate Financing',
+                'Heavy Financing'
+            )
+        )
+);
+GO
+
+
+/*
+===========================================================
+INDEXES
+===========================================================
+*/
+
+CREATE INDEX idx_payment_order
+ON gold.fct_order_payments(order_id);
+GO
+
+CREATE INDEX idx_payment_customer
+ON gold.fct_order_payments(customer_sk_fk);
+GO
+
+CREATE INDEX idx_payment_seller
+ON gold.fct_order_payments(seller_sk_fk);
+GO
+
+CREATE INDEX idx_payment_type
+ON gold.fct_order_payments(payment_type);
+GO
+
+CREATE INDEX idx_payment_installments
+ON gold.fct_order_payments(payment_installments);
+GO
+
+CREATE INDEX idx_payment_purchase_date
+ON gold.fct_order_payments(purchase_date_sk);
+GO
+
+CREATE INDEX idx_payment_value
+ON gold.fct_order_payments(payment_value);
+GO
+
+CREATE INDEX idx_payment_behavior_segment
+ON gold.fct_order_payments(payment_behavior_segment);
+GO
+
+
+/*
+===========================================================
+OPTIONAL ANALYTICS INDEX
+===========================================================
+*/
+
+CREATE INDEX idx_payment_split_installment
+ON gold.fct_order_payments
+(
+    split_payment_flag,
+    high_installment_flag,
+    is_installment_payment
+);
+GO

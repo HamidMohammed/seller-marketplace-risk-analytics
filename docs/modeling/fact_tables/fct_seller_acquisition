@@ -1,0 +1,266 @@
+/* =========================================================
+   FACT TABLE: fct_seller_acquisition
+   SQL Server Compatible DDL
+   Grain:
+   ONE ROW = ONE SELLER ACQUISITION EVENT
+   ========================================================= */
+
+CREATE TABLE fct_seller_acquisition (
+
+    /* =====================================================
+       SURROGATE PRIMARY KEY
+       ===================================================== */
+
+    seller_acquisition_fact_sk BIGINT IDENTITY(1,1) PRIMARY KEY,
+
+
+    /* =====================================================
+       BUSINESS IDENTIFIERS
+       ===================================================== */
+
+    mql_id VARCHAR(50) NOT NULL,
+
+    seller_id VARCHAR(50) NULL,
+
+
+    /* =====================================================
+       FOREIGN KEYS
+       ===================================================== */
+
+    seller_sk_fk BIGINT NULL,
+
+    first_contact_date_sk INT NOT NULL,
+
+    lead_qualification_date_sk INT NULL,
+
+    conversion_date_sk INT NULL,
+
+
+    /* =====================================================
+       ACQUISITION ATTRIBUTES
+       ===================================================== */
+
+    acquisition_channel VARCHAR(100) NULL,
+
+    lead_type VARCHAR(100) NULL,
+
+    lead_behavior_profile VARCHAR(100) NULL,
+
+    business_segment VARCHAR(100) NULL,
+
+    declared_monthly_revenue DECIMAL(14,2) NULL,
+
+    expected_sales_volume VARCHAR(50) NULL,
+
+    lead_conversion_status VARCHAR(30) NOT NULL,
+
+
+    /* =====================================================
+       DERIVED METRICS
+       ===================================================== */
+
+    days_to_convert INT NULL,
+
+    converted_flag BIT NOT NULL DEFAULT 0,
+
+    high_value_seller_flag BIT NOT NULL DEFAULT 0,
+
+    acquisition_risk_category VARCHAR(30) NULL,
+
+
+    /* =====================================================
+       AUDIT COLUMN
+       ===================================================== */
+
+    load_timestamp DATETIME2 DEFAULT GETDATE(),
+
+
+    /* =====================================================
+       FOREIGN KEY CONSTRAINTS
+       ===================================================== */
+
+    CONSTRAINT fk_acquisition_seller
+        FOREIGN KEY (seller_sk_fk)
+        REFERENCES dim_seller(seller_sk),
+
+    CONSTRAINT fk_acquisition_first_contact_date
+        FOREIGN KEY (first_contact_date_sk)
+        REFERENCES dim_date(date_sk),
+
+    CONSTRAINT fk_acquisition_qualification_date
+        FOREIGN KEY (lead_qualification_date_sk)
+        REFERENCES dim_date(date_sk),
+
+    CONSTRAINT fk_acquisition_conversion_date
+        FOREIGN KEY (conversion_date_sk)
+        REFERENCES dim_date(date_sk),
+
+
+    /* =====================================================
+       UNIQUENESS CONSTRAINT
+       ===================================================== */
+
+    CONSTRAINT uq_mql_id
+        UNIQUE (mql_id),
+
+
+    /* =====================================================
+       DATA QUALITY CONSTRAINTS
+       ===================================================== */
+
+    CONSTRAINT chk_days_to_convert
+        CHECK (
+            days_to_convert IS NULL
+            OR days_to_convert >= 0
+        ),
+
+    CONSTRAINT chk_declared_revenue
+        CHECK (
+            declared_monthly_revenue IS NULL
+            OR declared_monthly_revenue >= 0
+        ),
+
+    CONSTRAINT chk_conversion_status
+        CHECK (
+            lead_conversion_status IN (
+                'Converted',
+                'Not Converted',
+                'Pending'
+            )
+        ),
+
+    CONSTRAINT chk_risk_category
+        CHECK (
+            acquisition_risk_category IS NULL
+            OR acquisition_risk_category IN (
+                'Low Risk',
+                'Medium Risk',
+                'High Risk',
+                'Critical Risk'
+            )
+        )
+
+);
+
+GO
+
+
+/* =========================================================
+   PERFORMANCE INDEXES
+   ========================================================= */
+
+CREATE INDEX idx_acquisition_seller
+ON fct_seller_acquisition(seller_sk_fk);
+
+GO
+
+CREATE INDEX idx_acquisition_channel
+ON fct_seller_acquisition(acquisition_channel);
+
+GO
+
+CREATE INDEX idx_acquisition_segment
+ON fct_seller_acquisition(business_segment);
+
+GO
+
+CREATE INDEX idx_acquisition_conversion_status
+ON fct_seller_acquisition(lead_conversion_status);
+
+GO
+
+CREATE INDEX idx_acquisition_conversion_date
+ON fct_seller_acquisition(conversion_date_sk);
+
+GO
+
+CREATE INDEX idx_acquisition_risk
+ON fct_seller_acquisition(acquisition_risk_category);
+
+GO
+
+CREATE INDEX idx_acquisition_high_value
+ON fct_seller_acquisition(high_value_seller_flag);
+
+GO
+
+
+/* =========================================================
+   RECOMMENDED ETL DERIVATIONS
+   =========================================================
+
+converted_flag =
+    CASE
+        WHEN seller_id IS NOT NULL
+        THEN 1
+        ELSE 0
+    END
+
+days_to_convert =
+    DATEDIFF(
+        DAY,
+        first_contact_date,
+        conversion_date
+    )
+
+high_value_seller_flag =
+    CASE
+        WHEN declared_monthly_revenue >= 100000
+        THEN 1
+        ELSE 0
+    END
+
+========================================================= */
+
+
+/* =========================================================
+   RECOMMENDED ACQUISITION RISK LOGIC
+   =========================================================
+
+Example logic:
+
+CASE
+    WHEN lead_behavior_profile IN ('cat', 'wolf')
+         AND business_segment IN ('small_business')
+    THEN 'High Risk'
+
+    WHEN declared_monthly_revenue >= 100000
+    THEN 'Low Risk'
+
+    ELSE 'Medium Risk'
+END
+
+========================================================= */
+
+
+/* =========================================================
+   IMPORTANT MODELING NOTES
+   =========================================================
+
+1. Not all sellers exist in acquisition datasets
+2. seller_sk_fk is nullable intentionally
+3. LEFT JOIN is recommended during ETL
+4. Acquisition data represents partial funnel coverage
+5. This fact supports:
+    - seller lifecycle analytics
+    - acquisition ROI analysis
+    - seller-risk investigation
+    - streaming seller enrichment
+
+========================================================= */
+
+
+/* =========================================================
+   BUSINESS PURPOSE
+   =========================================================
+
+This fact table supports:
+
+- Seller acquisition analysis
+- Funnel conversion analysis
+- Seller lifecycle intelligence
+- Acquisition quality evaluation
+- Predictive seller-risk investigation
+- Historical enrichment for streaming systems
+
+========================================================= */

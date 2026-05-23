@@ -1,0 +1,38 @@
+datasets:
+  - name: orders
+    file: olist_orders_dataset.csv
+
+  - name: order_items
+    file: olist_order_items_dataset.csv
+
+  - name: customers
+    file: olist_customers_dataset.csv
+
+  - name: sellers
+    file: olist_sellers_dataset.csv
+
+  - name: products
+    file: olist_products_dataset.csv
+
+  - name: reviews
+    file: olist_order_reviews_dataset.csv
+
+    read_options:
+      multiLine: true
+      quote: '"'
+      escape: '"'
+
+  - name: payments
+    file: olist_order_payments_dataset.csv
+
+  - name: geolocation
+    file: olist_geolocation_dataset.csv
+
+  - name: category_translation
+    file: product_category_name_translation.csv
+
+  - name: mql
+    file: olist_marketing_qualified_leads_dataset.csv
+
+  - name: closed_deals
+    file: olist_closed_deals_dataset.csv

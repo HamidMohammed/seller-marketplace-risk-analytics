@@ -1,0 +1,286 @@
+/* =========================================================
+   FACT TABLE: fct_order_sales
+   SQL Server Compatible DDL
+   Grain:
+   ONE ROW = ONE SOLD ORDER ITEM
+   ========================================================= */
+
+CREATE TABLE fct_order_sales (
+
+    /* =====================================================
+       SURROGATE PRIMARY KEY
+       ===================================================== */
+
+    sales_fact_sk BIGINT IDENTITY(1,1) PRIMARY KEY,
+
+
+    /* =====================================================
+       BUSINESS IDENTIFIERS
+       ===================================================== */
+
+    order_id VARCHAR(50) NOT NULL,
+
+    order_item_id INT NOT NULL,
+
+
+    /* =====================================================
+       FOREIGN KEYS
+       ===================================================== */
+
+    customer_sk_fk BIGINT NOT NULL,
+
+    seller_sk_fk BIGINT NOT NULL,
+
+    product_sk_fk BIGINT NOT NULL,
+
+    purchase_date_sk INT NOT NULL,
+
+    approval_date_sk INT NULL,
+
+    delivered_date_sk INT NULL,
+
+
+    /* =====================================================
+       ORDER ATTRIBUTES
+       ===================================================== */
+
+    order_status VARCHAR(30) NOT NULL,
+
+
+    /* =====================================================
+       SALES METRICS
+       ===================================================== */
+
+    item_price DECIMAL(12,2) NOT NULL,
+
+    freight_value DECIMAL(12,2) NOT NULL,
+
+    total_sales_value DECIMAL(12,2) NOT NULL,
+
+    gross_merchandise_value DECIMAL(12,2) NOT NULL,
+
+    payment_value_allocated DECIMAL(12,2) NULL,
+
+    installment_count INT NULL,
+
+    payment_type VARCHAR(30) NULL,
+
+    product_quantity INT NOT NULL DEFAULT 1,
+
+
+    /* =====================================================
+       COMMERCIAL ANALYTICS
+       ===================================================== */
+
+    freight_ratio DECIMAL(10,4) NULL,
+
+    high_value_order_flag BIT NOT NULL DEFAULT 0,
+
+
+    /* =====================================================
+       AUDIT COLUMN
+       ===================================================== */
+
+    load_timestamp DATETIME2 DEFAULT GETDATE(),
+
+
+    /* =====================================================
+       FOREIGN KEY CONSTRAINTS
+       ===================================================== */
+
+    CONSTRAINT fk_sales_customer
+        FOREIGN KEY (customer_sk_fk)
+        REFERENCES dim_customer(customer_sk),
+
+    CONSTRAINT fk_sales_seller
+        FOREIGN KEY (seller_sk_fk)
+        REFERENCES dim_seller(seller_sk),
+
+    CONSTRAINT fk_sales_product
+        FOREIGN KEY (product_sk_fk)
+        REFERENCES dim_product(product_sk),
+
+    CONSTRAINT fk_sales_purchase_date
+        FOREIGN KEY (purchase_date_sk)
+        REFERENCES dim_date(date_sk),
+
+    CONSTRAINT fk_sales_approval_date
+        FOREIGN KEY (approval_date_sk)
+        REFERENCES dim_date(date_sk),
+
+    CONSTRAINT fk_sales_delivered_date
+        FOREIGN KEY (delivered_date_sk)
+        REFERENCES dim_date(date_sk),
+
+
+    /* =====================================================
+       BUSINESS GRAIN ENFORCEMENT
+       ===================================================== */
+
+    CONSTRAINT uq_sales_order_item
+        UNIQUE (order_id, order_item_id),
+
+
+    /* =====================================================
+       DATA QUALITY CONSTRAINTS
+       ===================================================== */
+
+    CONSTRAINT chk_item_price
+        CHECK (item_price >= 0),
+
+    CONSTRAINT chk_freight_value
+        CHECK (freight_value >= 0),
+
+    CONSTRAINT chk_total_sales_value
+        CHECK (total_sales_value >= 0),
+
+    CONSTRAINT chk_gmv
+        CHECK (gross_merchandise_value >= 0),
+
+    CONSTRAINT chk_payment_allocated
+        CHECK (
+            payment_value_allocated IS NULL
+            OR payment_value_allocated >= 0
+        ),
+
+    CONSTRAINT chk_product_quantity
+        CHECK (product_quantity > 0),
+
+    CONSTRAINT chk_installments
+        CHECK (
+            installment_count IS NULL
+            OR installment_count > 0
+        ),
+
+    CONSTRAINT chk_freight_ratio
+        CHECK (
+            freight_ratio IS NULL
+            OR freight_ratio >= 0
+        ),
+
+    CONSTRAINT chk_order_status
+        CHECK (
+            order_status IN (
+                'created',
+                'approved',
+                'invoiced',
+                'processing',
+                'shipped',
+                'delivered',
+                'canceled',
+                'unavailable'
+            )
+        )
+
+);
+
+GO
+
+
+/* =========================================================
+   PERFORMANCE INDEXES
+   ========================================================= */
+
+CREATE INDEX idx_sales_seller
+ON fct_order_sales(seller_sk_fk);
+
+GO
+
+CREATE INDEX idx_sales_customer
+ON fct_order_sales(customer_sk_fk);
+
+GO
+
+CREATE INDEX idx_sales_product
+ON fct_order_sales(product_sk_fk);
+
+GO
+
+CREATE INDEX idx_sales_purchase_date
+ON fct_order_sales(purchase_date_sk);
+
+GO
+
+CREATE INDEX idx_sales_order_status
+ON fct_order_sales(order_status);
+
+GO
+
+CREATE INDEX idx_sales_payment_type
+ON fct_order_sales(payment_type);
+
+GO
+
+CREATE INDEX idx_sales_high_value
+ON fct_order_sales(high_value_order_flag);
+
+GO
+
+CREATE INDEX idx_sales_total_value
+ON fct_order_sales(total_sales_value);
+
+GO
+
+
+/* =========================================================
+   RECOMMENDED ETL DERIVATIONS
+   =========================================================
+
+total_sales_value =
+    item_price + freight_value
+
+gross_merchandise_value =
+    item_price
+
+freight_ratio =
+    freight_value / NULLIF(item_price, 0)
+
+high_value_order_flag =
+    CASE
+        WHEN total_sales_value >= 1000
+        THEN 1
+        ELSE 0
+    END
+
+========================================================= */
+
+
+/* =========================================================
+   PAYMENT ALLOCATION STRATEGY
+   =========================================================
+
+The Olist payment dataset is order-level,
+while this fact is item-level.
+
+Recommended proportional allocation:
+
+payment_value_allocated =
+(
+    item_price
+    / total_order_item_price
+)
+* payment_value
+
+This preserves:
+- seller revenue attribution
+- item-level profitability analysis
+- commercial consistency
+
+========================================================= */
+
+
+/* =========================================================
+   BUSINESS PURPOSE
+   =========================================================
+
+This fact table supports:
+
+- Revenue analysis
+- GMV analysis
+- Seller sales performance
+- Product category analysis
+- Freight profitability analysis
+- Payment behavior investigation
+- Revenue-aware streaming prioritization
+
+========================================================= */

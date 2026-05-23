@@ -1,0 +1,241 @@
+/* =========================================================
+   FACT TABLE: fct_customer_reviews
+   SQL Server Compatible DDL
+   Grain:
+   ONE ROW = ONE CUSTOMER REVIEW
+   ========================================================= */
+
+CREATE TABLE fct_customer_reviews (
+
+    /* =====================================================
+       SURROGATE PRIMARY KEY
+       ===================================================== */
+
+    review_fact_sk BIGINT IDENTITY(1,1) PRIMARY KEY,
+
+
+    /* =====================================================
+       BUSINESS IDENTIFIERS
+       ===================================================== */
+
+    review_id VARCHAR(50) NOT NULL,
+
+    order_id VARCHAR(50) NOT NULL,
+
+
+    /* =====================================================
+       FOREIGN KEYS
+       ===================================================== */
+
+    customer_sk_fk BIGINT NOT NULL,
+
+    seller_sk_fk BIGINT NOT NULL,
+
+    review_creation_date_sk INT NOT NULL,
+
+    review_answer_date_sk INT NULL,
+
+
+    /* =====================================================
+       REVIEW ATTRIBUTES
+       ===================================================== */
+
+    review_score SMALLINT NOT NULL,
+
+    review_title NVARCHAR(500) NULL,
+
+    review_message NVARCHAR(MAX) NULL,
+
+    review_creation_timestamp DATETIME2 NOT NULL,
+
+    review_answer_timestamp DATETIME2 NULL,
+
+
+    /* =====================================================
+       DERIVED METRICS
+       ===================================================== */
+
+    review_response_days INT NULL,
+
+    negative_review_flag BIT NOT NULL DEFAULT 0,
+
+    neutral_review_flag BIT NOT NULL DEFAULT 0,
+
+    positive_review_flag BIT NOT NULL DEFAULT 0,
+
+    sentiment_category VARCHAR(20) NOT NULL,
+
+    review_text_exists_flag BIT NOT NULL DEFAULT 0,
+
+
+    /* =====================================================
+       AUDIT COLUMN
+       ===================================================== */
+
+    load_timestamp DATETIME2 DEFAULT GETDATE(),
+
+
+    /* =====================================================
+       FOREIGN KEY CONSTRAINTS
+       ===================================================== */
+
+    CONSTRAINT fk_review_customer
+        FOREIGN KEY (customer_sk_fk)
+        REFERENCES dim_customer(customer_sk),
+
+    CONSTRAINT fk_review_seller
+        FOREIGN KEY (seller_sk_fk)
+        REFERENCES dim_seller(seller_sk),
+
+    CONSTRAINT fk_review_creation_date
+        FOREIGN KEY (review_creation_date_sk)
+        REFERENCES dim_date(date_sk),
+
+    CONSTRAINT fk_review_answer_date
+        FOREIGN KEY (review_answer_date_sk)
+        REFERENCES dim_date(date_sk),
+
+
+    /* =====================================================
+       DATA QUALITY CONSTRAINTS
+       ===================================================== */
+
+    CONSTRAINT chk_review_score
+        CHECK (review_score BETWEEN 1 AND 5),
+
+    CONSTRAINT chk_review_response_days
+        CHECK (
+            review_response_days IS NULL
+            OR review_response_days >= 0
+        ),
+
+    CONSTRAINT chk_sentiment_category
+        CHECK (
+            sentiment_category IN (
+                'Negative',
+                'Neutral',
+                'Positive'
+            )
+        )
+
+);
+
+GO
+
+
+/* =========================================================
+   UNIQUE CONSTRAINTS
+   ========================================================= */
+
+ALTER TABLE fct_customer_reviews
+ADD CONSTRAINT uq_review_id
+UNIQUE (review_id);
+
+GO
+
+
+/* =========================================================
+   PERFORMANCE INDEXES
+   ========================================================= */
+
+CREATE INDEX idx_review_score
+ON fct_customer_reviews(review_score);
+
+GO
+
+CREATE INDEX idx_review_seller
+ON fct_customer_reviews(seller_sk_fk);
+
+GO
+
+CREATE INDEX idx_review_customer
+ON fct_customer_reviews(customer_sk_fk);
+
+GO
+
+CREATE INDEX idx_review_creation_date
+ON fct_customer_reviews(review_creation_date_sk);
+
+GO
+
+CREATE INDEX idx_review_sentiment
+ON fct_customer_reviews(sentiment_category);
+
+GO
+
+CREATE INDEX idx_review_order
+ON fct_customer_reviews(order_id);
+
+GO
+
+
+/* =========================================================
+   RECOMMENDED SENTIMENT LOGIC
+   =========================================================
+
+1-2  -> Negative
+3    -> Neutral
+4-5  -> Positive
+
+========================================================= */
+
+
+/* =========================================================
+   RECOMMENDED ETL DERIVATIONS
+   =========================================================
+
+negative_review_flag =
+    CASE
+        WHEN review_score <= 2 THEN 1
+        ELSE 0
+    END
+
+neutral_review_flag =
+    CASE
+        WHEN review_score = 3 THEN 1
+        ELSE 0
+    END
+
+positive_review_flag =
+    CASE
+        WHEN review_score >= 4 THEN 1
+        ELSE 0
+    END
+
+review_text_exists_flag =
+    CASE
+        WHEN review_message IS NOT NULL
+             AND LTRIM(RTRIM(review_message)) <> ''
+        THEN 1
+        ELSE 0
+    END
+
+review_response_days =
+    DATEDIFF(
+        DAY,
+        review_creation_timestamp,
+        review_answer_timestamp
+    )
+
+========================================================= */
+
+
+/* =========================================================
+   IMPORTANT MODELING RULE
+   =========================================================
+
+Recommended seller attribution strategy:
+
+Use only single-seller delivered orders
+for reliable seller-review attribution.
+
+Recommended filter:
+
+seller_count = 1
+
+This avoids:
+- ambiguous seller responsibility
+- mixed review attribution
+- unreliable seller satisfaction KPIs
+
+========================================================= */
