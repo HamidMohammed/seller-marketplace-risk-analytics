@@ -193,11 +193,11 @@ silver_pipeline = [
     # =====================================================
 
     {
-        "name": "silver_marketing_leads",
+        "name": "silver_mql",
         "path": (
             "pipelines/silver/transformations/"
-            "marketing_leads/"
-            "transform_marketing_leads.py"
+            "mql/"
+            "transform_mql.py"
         )
     },
 
@@ -210,14 +210,14 @@ silver_pipeline = [
         )
     },
 
-    {
-        "name": "silver_seller_acquisition",
-        "path": (
-            "pipelines/silver/transformations/"
-            "seller_acquisition/"
-            "transform_seller_acquisition.py"
-        )
-    },
+    # {
+    #     "name": "silver_seller_acquisition",
+    #     "path": (
+    #         "pipelines/silver/transformations/"
+    #         "seller_acquisition/"
+    #         "transform_seller_acquisition.py"
+    #     )
+    # },
 
     # =====================================================
     # STAGING LAYER
