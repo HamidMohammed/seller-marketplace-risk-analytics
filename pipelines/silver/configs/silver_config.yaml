@@ -35,6 +35,7 @@ paths:
     reviews_staging: data/silver/reviews_staging/
     seller_acquisition_staging: data/silver/seller_acquisition_staging/
     sales_staging: data/silver/sales_staging/
+    seller_performance_monthly_staging: data/silver/seller_performance_monthly_staging/
 
 metadata:
   source_system: olist
