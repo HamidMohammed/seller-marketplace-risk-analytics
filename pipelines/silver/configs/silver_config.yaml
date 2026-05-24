@@ -32,6 +32,7 @@ paths:
     closed_deals: data/silver/closed_deals
     order_delivery_staging: data/silver/order_delivery_staging/
     seller_fulfillment_staging: data/silver/seller_fulfillment_staging/
+    reviews_staging: data/silver/reviews_staging/
 
 metadata:
   source_system: olist

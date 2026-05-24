@@ -239,6 +239,15 @@ silver_pipeline = [
             "staging/"
             "transform_seller_fulfillment_staging.py"
         )
+    },
+    
+        {
+        "name": "reviews_staging",
+        "path": (
+            "pipelines/silver/transformations/"
+            "staging/"
+            "transform_reviews_staging.py"
+        )
     }
 ]
 
