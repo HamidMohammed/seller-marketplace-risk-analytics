@@ -30,6 +30,8 @@ paths:
     category_translation: data/silver/category_translation/
     mql: data/silver/mql/
     closed_deals: data/silver/closed_deals
+    order_delivery_staging: data/silver/order_delivery_staging/
+    seller_fulfillment_staging: data/silver/seller_fulfillment_staging/
 
 metadata:
   source_system: olist

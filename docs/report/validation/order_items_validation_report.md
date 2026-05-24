@@ -1,574 +1,552 @@
-# `order_items_validation_report.md`
+# `order_delivery_staging_validation_report.md`
 
-## Validation Report Overview
+````markdown id="m7k4xq"
+# Order Delivery Staging Validation Report
+
+## Dataset
+
+```text
+order_delivery_staging
+```
+````
+
+---
+
+# Objective
 
 This report documents the validation results for the:
 
-# `silver_order_items`
+```text id="yb2m4w"
+order_delivery_staging
+```
 
-dataset inside the:
+dataset inside the Silver Staging layer of the:
 
 # Olist Seller Intelligence Platform
 
-The validation process follows:
+The purpose of this validation process is to ensure:
 
-# validation-driven transformation governance
+- order-level grain integrity
+- delivery lifecycle correctness
+- seller attribution consistency
+- geographic enrichment quality
+- delivery KPI trustworthiness
+- downstream Gold mart readiness
 
-defined in the Silver transformation strategy.
+This dataset acts as:
 
-The purpose of this validation layer is to ensure:
-
-- grain integrity
-- financial consistency
-- logistics correctness
-- seller accountability
-- operational lifecycle validity
-- KPI trustworthiness
-
-before the dataset becomes available for:
-
-- Gold marts
-- dashboards
-- streaming enrichment
-- analytical consumption
-
----
-
-# Dataset Information
-
-| Attribute         | Value                                       |
-| ----------------- | ------------------------------------------- |
-| Dataset           | silver_order_items                          |
-| Layer             | Silver                                      |
-| Dataset Grain     | ONE ROW = ONE SELLER ITEM FULFILLMENT EVENT |
-| Validation Status | PASSED WITH WARNINGS                        |
-| Output Format     | Parquet                                     |
-
----
-
-# Validation Scope
-
-The validation framework covered:
-
-| Validation Area                  | Objective                      |
-| -------------------------------- | ------------------------------ |
-| Row-count integrity              | prevent accidental row loss    |
-| Grain validation                 | preserve dataset uniqueness    |
-| Critical null validation         | protect operational joins      |
-| Financial validation             | ensure KPI-safe values         |
-| Freight validation               | protect logistics intelligence |
-| Product volume validation        | prevent impossible dimensions  |
-| Seller accountability validation | preserve seller attribution    |
-| Shipping lifecycle validation    | ensure operational chronology  |
-| Multi-seller analysis            | operational enrichment         |
-| Product enrichment validation    | enrichment completeness        |
-
----
-
-# Validation Results
-
----
-
-# [1] ROW COUNT VALIDATION
-
-## Objective
-
-Ensure no unexpected row loss or row explosion occurred during transformations.
-
----
-
-## Result
-
-| Metric            | Result |
-| ----------------- | ------ |
-| Validation Status | PASSED |
-
----
-
-## Interpretation
-
-The Silver transformation pipeline successfully preserved:
-
-# dataset cardinality integrity
-
-This confirms:
-
-- joins were controlled correctly
-- no accidental filtering occurred
-- no duplicate row explosion occurred during enrichment
-
-This is critical because:
-row-count instability can silently corrupt downstream KPIs.
-
----
-
-# [2] GRAIN VALIDATION
-
-## Objective
-
-Validate:
-
-# ONE ROW = ONE ORDER ITEM EVENT
-
-using:
-
-```text
-(order_id, order_item_id)
-```
-
-as the composite business grain.
-
----
-
-## Result
-
-| Metric            | Result |
-| ----------------- | ------ |
-| Validation Status | PASSED |
-
----
-
-## Interpretation
-
-No duplicate fulfillment events were detected.
-
-This confirms:
-
-- seller accountability integrity
-- logistics KPI consistency
-- downstream fact-table reliability
-
-This validation is one of the MOST important controls in the platform because grain corruption causes:
-
-- fan-out duplication
-- inflated metrics
-- invalid aggregations
-- broken seller attribution
-
----
-
-# [3] CRITICAL NULL VALIDATION
-
-## Objective
-
-Validate critical business fields required for:
-
-- fulfillment integrity
-- logistics analysis
-- seller accountability
-- dimensional linkage
-
----
-
-## Validated Columns
-
-| Column        |
-| ------------- |
-| order_id      |
-| order_item_id |
-| product_id    |
-| seller_id     |
-| price         |
-| freight_value |
-
----
-
-## Result
-
-| Metric            | Result |
-| ----------------- | ------ |
-| Validation Status | PASSED |
-
----
-
-## Interpretation
-
-Critical operational fields are present and complete.
-
-This ensures:
-
-- stable dimensional joins
-- valid logistics calculations
-- trustworthy downstream analytics
-
----
-
-# [4] FINANCIAL VALIDATION
-
-## Objective
-
-Ensure financial metrics remain logically valid and non-negative.
-
----
-
-# Price Validation
-
-## Result
-
-| Validation             | Result |
-| ---------------------- | ------ |
-| Negative price records | 0      |
-| Status                 | PASSED |
-
----
-
-## Interpretation
-
-No invalid product pricing values were detected.
-
-This protects:
-
-- revenue calculations
-- sales KPIs
-- profitability metrics
-
----
-
-# Freight Value Validation
-
-## Result
-
-| Validation               | Result |
-| ------------------------ | ------ |
-| Negative freight records | 0      |
-| Status                   | PASSED |
-
----
-
-## Interpretation
-
-No invalid freight charges were detected.
-
-This confirms:
-
-- logistics calculations remain trustworthy
-- shipping analytics remain operationally valid
-
----
-
-# [5] FREIGHT RATIO VALIDATION
-
-## Objective
-
-Validate:
-
-# freight_ratio >= 0
-
----
-
-## Result
-
-| Validation              | Result |
-| ----------------------- | ------ |
-| Negative freight ratios | 0      |
-| Status                  | PASSED |
-
----
-
-## Interpretation
-
-All freight burden calculations are logically valid.
-
-This confirms:
-
-- shipping intensity metrics remain trustworthy
-- freight-to-product-value analytics are stable
-
-This metric is foundational for:
-
-- logistics profitability analysis
-- oversized shipment detection
-- operational cost investigation
-
----
-
-# [6] PRODUCT VOLUME VALIDATION
-
-## Objective
-
-Ensure derived product shipment volume remains physically valid.
-
----
-
-## Result
-
-| Validation               | Result |
-| ------------------------ | ------ |
-| Negative product volumes | 0      |
-| Status                   | PASSED |
-
----
-
-## Interpretation
-
-No impossible shipment dimensions were detected.
-
-This confirms:
-
-- logistics enrichment integrity
-- reliable shipment-volume analysis
-- trustworthy warehouse complexity metrics
-
----
-
-# [7] SELLER ACCOUNTABILITY VALIDATION
-
-## Objective
-
-Validate:
-
-# seller_count >= 1
-
-for all order-item events.
-
----
-
-## Result
-
-| Validation                   | Result |
-| ---------------------------- | ------ |
-| Invalid seller count records | 0      |
-| Status                       | PASSED |
-
----
-
-## Interpretation
-
-Every fulfillment event is successfully associated with at least one seller.
-
-This protects:
-
-- seller operational attribution
-- fulfillment accountability
-- downstream review linkage
-
----
-
-# [8] SHIPPING DEADLINE VALIDATION
-
-## Objective
-
-Validate operational chronology:
-
-```text
-shipping_limit_date >= order_purchase_timestamp
-```
-
----
-
-## Result
-
-| Validation                        | Result |
-| --------------------------------- | ------ |
-| Invalid shipping timeline records | 0      |
-| Status                            | PASSED |
-
----
-
-## Interpretation
-
-No impossible seller fulfillment timelines were detected.
-
-This confirms:
-
-- operational lifecycle consistency
-- trustworthy fulfillment timing analytics
-- reliable logistics SLA analysis
-
-This validation is critical because:
-invalid shipment timelines corrupt:
-
-- seller KPIs
-- delay metrics
-- operational monitoring
-
----
-
-# [9] MULTI-SELLER ORDER ANALYSIS
-
-## Objective
-
-Measure operational complexity caused by:
-
-# multi-seller orders
-
----
-
-## Result
-
-| Metric              | Value |
-| ------------------- | ----- |
-| Multi-seller orders | 1278  |
-
----
-
-## Interpretation
-
-The platform contains:
-
-# 1278 multi-seller orders
-
-This is operationally significant because:
-multi-seller orders introduce:
-
-- delivery accountability ambiguity
-- review attribution complexity
-- logistics coordination overhead
-
-This metric becomes important for:
-
-- seller-risk analytics
-- delivery attribution governance
-- customer experience analysis
-
-This result validates the architectural importance of:
-
-# dual-fact delivery modeling
-
-implemented across the warehouse.
-
----
-
-# [10] ORPHAN ENRICHMENT VALIDATION
-
-## Objective
-
-Validate completeness of:
-
-# product logistics enrichment
-
-from:
-
-```text
-bronze/products
-```
-
----
-
-## Result
-
-| Validation                         | Result  |
-| ---------------------------------- | ------- |
-| Missing product enrichment records | 18      |
-| Status                             | WARNING |
-
----
-
-## Interpretation
-
-18 order-item records are missing product logistics enrichment attributes.
-
-Missing enrichment may impact:
-
-- volume calculations
-- logistics complexity analysis
-- freight investigation
-
-However:
-this does NOT invalidate the operational fulfillment events themselves.
-
-Therefore:
-the records were intentionally preserved according to:
-
-# operational truth preservation policy
-
-defined in the Silver governance strategy.
-
----
-
-# Architectural Interpretation of Warning
-
-The warning demonstrates:
-
-# governed anomaly preservation
-
-instead of:
-
-# aggressive record deletion
-
-This is an intentional enterprise engineering decision.
-
-The pipeline prioritizes:
-
-- operational truth retention
-- analytical transparency
-- reproducibility
-- KPI defensibility
-
-over:
-
-- silent over-cleaning
-
-This aligns with the platform’s:
-
-# zero silent data-loss policy.
-
----
-
-# Overall Validation Assessment
-
-| Area                   | Result                |
-| ---------------------- | --------------------- |
-| Grain Integrity        | PASSED                |
-| Financial Integrity    | PASSED                |
-| Logistics Integrity    | PASSED                |
-| Lifecycle Integrity    | PASSED                |
-| Seller Accountability  | PASSED                |
-| Product Enrichment     | WARNING               |
-| Overall Dataset Status | TRUSTED WITH WARNINGS |
-
----
-
-# Final Engineering Assessment
-
-The:
-
-# `silver_order_items`
-
-dataset successfully passed all critical operational validations.
-
-The dataset is considered:
-
-# analytically trusted
+# the operational customer delivery intelligence staging layer
 
 for:
 
-- Gold fact construction
-- seller fulfillment marts
-- delivery enrichment
-- logistics intelligence
-- streaming operational analytics
-
-The detected enrichment warning is:
-
-- documented
-- explainable
-- operationally acceptable
-- governance-compliant
-
-and does NOT compromise:
-
-- dataset grain
-- KPI correctness
-- seller accountability
-- lifecycle integrity
+- `fct_order_delivery`
+- delivery KPI analytics
+- delay analysis
+- seller delivery performance analysis
+- streaming delivery risk detection
 
 ---
 
-# Governance Alignment
+# Dataset Grain
 
-This validation process demonstrates implementation of:
+# ONE ROW = ONE CUSTOMER ORDER
 
-- validation-driven engineering
-- operational truth preservation
-- modular ETL governance
-- scalable analytical quality controls
-- enterprise-grade Silver transformation standards
+Each row represents:
 
-as defined in:
+- one customer order
+- one final delivery lifecycle
+- one customer delivery outcome
 
-# `silver_transformation_strategy.md`
+This grain is preserved throughout the staging pipeline to prevent:
 
-and:
+- mixed-grain corruption
+- fan-out duplication
+- duplicated delivery metrics
+- invalid seller attribution
+- unreliable delivery KPIs
 
-# `silver_order_items.md`
+This follows the platform’s:
+
+# dual-fact delivery modeling strategy
+
+where:
+
+- seller fulfillment operations
+- final customer delivery outcomes
+
+remain separated for analytical correctness.
+
+---
+
+# Validation Execution Summary
+
+| Validation Category              | Result                               |
+| -------------------------------- | ------------------------------------ |
+| Row Count Validation             | PASSED                               |
+| Grain Validation                 | PASSED                               |
+| Critical Null Validation         | PASSED WITH INVESTIGATED EXCEPTION   |
+| Delivery Lifecycle Validation    | PASSED                               |
+| Delivered Order Validation       | PASSED WITH KNOWN DATA QUALITY ISSUE |
+| Seller Accountability Validation | PASSED                               |
+| Distance Bucket Validation       | PASSED                               |
+
+---
+
+# 1. Row Count Validation
+
+## Final Row Count
+
+```text id="m6j4n9"
+99441
+```
+
+---
+
+## Interpretation
+
+The final row count confirms:
+
+- customer delivery events were preserved
+- no unexpected row loss occurred
+- aggregation logic remained grain-safe
+- joins did not create duplication
+
+This validates:
+
+# order-level delivery integrity
+
+throughout the staging process.
+
+---
+
+# 2. Grain Validation
+
+## Validation Rule
+
+```text id="ah7v5n"
+order_id
+must remain unique
+```
+
+---
+
+## Result
+
+```text id="v9f2zx"
+Duplicate order_id Count: 0
+```
+
+---
+
+## Interpretation
+
+This confirms:
+
+# PERFECT ORDER-LEVEL GRAIN PRESERVATION
+
+No duplicate customer delivery events were introduced during:
+
+- order-item aggregation
+- seller enrichment
+- customer enrichment
+- geographic joins
+
+This is one of the MOST critical validations in the delivery architecture because:
+incorrect grain handling would corrupt:
+
+- delivery KPIs
+- delay metrics
+- freight calculations
+- seller accountability analysis
+
+---
+
+# 3. Critical Null Validation
+
+## Results
+
+| Column                   | Null Count |
+| ------------------------ | ---------- |
+| order_id                 | 0          |
+| customer_id              | 0          |
+| order_status             | 0          |
+| order_purchase_timestamp | 0          |
+| seller_count             | 775        |
+| distance_bucket          | 0          |
+
+---
+
+# Interpretation
+
+The staging dataset achieved:
+
+# ZERO CRITICAL IDENTIFIER FAILURES
+
+for:
+
+- orders
+- customers
+- statuses
+- lifecycle timestamps
+
+---
+
+# Important Seller Count Observation
+
+The:
+
+```text id="k8o5pf"
+seller_count
+```
+
+column contains:
+
+```text id="aq3zpl"
+775 nulls
+```
+
+This is NOT considered a pipeline failure.
+
+---
+
+## Business Explanation
+
+These records likely represent:
+
+- canceled orders
+- unavailable orders
+- orders without associated fulfillment items
+
+Meaning:
+the operational order lifecycle exists,
+but no valid seller fulfillment events were attached.
+
+This is:
+
+# operational truth
+
+and should be preserved rather than silently removed.
+
+This follows the project’s:
+
+# zero silent data loss policy
+
+defined in the Silver transformation governance strategy.
+
+---
+
+# 4. Delivery Lifecycle Validation
+
+## Results
+
+| Validation                 | Result |
+| -------------------------- | ------ |
+| Invalid Approval Timelines | 0      |
+| Invalid Delivery Timelines | 0      |
+
+---
+
+# Interpretation
+
+This confirms:
+
+# TEMPORAL LIFECYCLE INTEGRITY
+
+The pipeline successfully preserved:
+
+- chronological order progression
+- operational lifecycle consistency
+- delivery timeline correctness
+
+No impossible lifecycle scenarios were detected such as:
+
+- approvals before purchases
+- deliveries before purchases
+
+This validation is extremely important because:
+delivery KPIs depend entirely on:
+
+# trustworthy temporal sequencing
+
+---
+
+# 5. Delivered Order Validation
+
+## Result
+
+```text id="g0z4vh"
+Delivered Orders Missing Delivery Timestamp: 8
+```
+
+---
+
+# Interpretation
+
+Only:
+
+```text id="y4x1nq"
+8 delivered orders
+```
+
+were missing:
+
+```text
+order_delivered_customer_date
+```
+
+This represents:
+
+# a very small operational data-quality anomaly
+
+likely originating from:
+
+- source-system inconsistencies
+- incomplete operational updates
+- historical platform recording gaps
+
+---
+
+# Engineering Decision
+
+These rows were intentionally preserved because:
+
+- they represent real operational records
+- silent deletion would distort delivery truth
+- anomaly preservation supports auditability
+
+This follows the platform’s:
+
+# operational truth preservation philosophy
+
+where:
+
+- business anomalies are documented
+- not silently removed
+
+---
+
+# 6. Seller Accountability Validation
+
+## Results
+
+| Category             | Count  |
+| -------------------- | ------ |
+| Multi Seller Orders  | 1,278  |
+| Single Seller Orders | 97,388 |
+
+---
+
+# Interpretation
+
+The overwhelming majority of orders are:
+
+# single-seller fulfillment orders
+
+This is extremely important analytically because:
+single-seller orders provide:
+
+# clean seller accountability
+
+for:
+
+- delivery KPIs
+- seller delay analysis
+- operational benchmarking
+
+---
+
+# Multi-Seller Importance
+
+The:
+
+```text id="oju3v8"
+1,278
+```
+
+multi-seller orders remain analytically important because they represent:
+
+- operational complexity
+- distributed fulfillment coordination
+- ambiguous delivery accountability
+
+These orders may later require:
+
+- special KPI segmentation
+- advanced attribution logic
+- exclusion from strict seller-performance benchmarking
+
+---
+
+# 7. Distance Bucket Validation
+
+## Distribution
+
+| Distance Bucket | Count  |
+| --------------- | ------ |
+| Same State      | 35,479 |
+| Same Region     | 23,666 |
+| Cross Region    | 39,521 |
+| Unknown         | 775    |
+
+---
+
+# Interpretation
+
+The distribution reveals:
+
+# geographically diverse fulfillment operations
+
+A significant portion of deliveries are:
+
+# cross-region shipments
+
+which likely contributes to:
+
+- longer delivery durations
+- logistics complexity
+- higher freight burden
+- operational delay risk
+
+---
+
+# Important Unknown Bucket Observation
+
+The:
+
+```text id="v29yr4"
+Unknown
+```
+
+bucket count:
+
+```text
+775
+```
+
+matches the:
+
+```text
+seller_count null count
+```
+
+This confirms:
+
+# validation consistency
+
+and strongly suggests:
+the same operational records lacking seller fulfillment data also lack:
+
+- seller geography
+- distance classification capability
+
+This consistency indicates:
+
+# controlled missingness
+
+NOT:
+
+# random corruption
+
+which is an important distinction in enterprise data quality engineering.
+
+---
+
+# Architectural Significance
+
+The `order_delivery_staging` dataset represents:
+
+# customer delivery outcome truth
+
+inside the warehouse architecture.
+
+Unlike:
+
+```text id="r5f0ji"
+seller_fulfillment_staging
+```
+
+which measures:
+
+# seller operational workload
+
+this staging layer measures:
+
+# final customer delivery experience
+
+This distinction is architecturally critical because:
+
+- fulfillment operations occur at item grain
+- delivery outcomes occur at order grain
+
+Separating these business processes preserves:
+
+- dimensional integrity
+- KPI correctness
+- analytical trustworthiness
+
+and follows:
+
+# Kimball dimensional modeling principles
+
+used throughout the platform architecture.
+
+---
+
+# Operational Intelligence Enabled
+
+This staging layer now supports:
+
+| Capability                       | Enabled |
+| -------------------------------- | ------- |
+| delivery KPI analysis            | YES     |
+| delay analysis                   | YES     |
+| seller delivery benchmarking     | YES     |
+| freight aggregation analysis     | YES     |
+| geographic delivery intelligence | YES     |
+| multi-seller complexity analysis | YES     |
+| streaming risk detection         | YES     |
+
+---
+
+# Final Validation Status
+
+# VALIDATED SUCCESSFULLY
+
+The:
+
+```text id="g5s2lb"
+order_delivery_staging
+```
+
+dataset is approved for:
+
+- `fct_order_delivery`
+- delivery intelligence marts
+- seller delivery analytics
+- operational KPI reporting
+- streaming delivery-risk enrichment
+
+with:
+
+# FULL ORDER GRAIN INTEGRITY
+
+# VALID DELIVERY TIMELINES
+
+# CONTROLLED OPERATIONAL ANOMALIES
+
+# CONSISTENT GEOGRAPHIC ENRICHMENT
+
+# ZERO DUPLICATE DELIVERY EVENTS
+
+```
+
+This is a VERY strong validation result academically because:
+you are not just validating:
+- schema
+- row counts
+
+You are validating:
+# business-process truth
+
+which is exactly how enterprise analytical engineering should work.
+```

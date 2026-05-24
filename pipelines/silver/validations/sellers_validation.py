@@ -450,7 +450,21 @@ Some sellers are missing geographic enrichment.
         )
 
     print("PASSED: Longitude validation.")
+    print("\n[11] acquisition coverage VALIDATION")
+    # Validate acquisition coverage
+    unknown_acquisition = transformed_df.filter(
+        col("acquisition_source") == "unknown"
+    ).count()
 
+    total_sellers = transformed_df.count()
+
+    coverage_pct = round(
+        (total_sellers - unknown_acquisition) / total_sellers * 100, 2
+    )
+
+    print(f"Acquisition Coverage: {coverage_pct}% of sellers traceable")
+    print(f"Unknown Acquisition: {unknown_acquisition} sellers")
+    # Expected: ~73% unknown — this is documented and acceptable
     # =====================================================
     # FINAL VALIDATION SUMMARY
     # =====================================================

@@ -106,6 +106,13 @@ SILVER_SELLERS_PATH = (
     config["paths"]["silver"]["sellers"]
 )
 
+SILVER_CLOSED_DEALS_PATH = (
+    config["paths"]["silver"]["closed_deals"]
+)
+
+SILVER_MQL_PATH = (
+    config["paths"]["silver"]["mql"]
+)
 # ---------------------------------------------------------
 # Metadata Configuration
 # ---------------------------------------------------------
@@ -135,6 +142,15 @@ geolocation_df = spark.read.parquet(
     SILVER_GEOLOCATION_PATH
 )
 
+closed_deals_df = spark.read.parquet(
+    SILVER_CLOSED_DEALS_PATH
+)
+# Load MQL for acquisition source (origin channel)
+mql_df = spark.read.parquet(
+    SILVER_MQL_PATH
+    )
+
+
 print(
     f"Sellers Count: "
     f"{sellers_df.count()}"
@@ -144,6 +160,34 @@ print(
     f"Geolocation Count: "
     f"{geolocation_df.count()}"
 )
+
+print(
+    f"Closed Deals Count: "
+    f"{closed_deals_df.count()}"
+)
+
+# Select only what dim_seller needs
+acquisition_df = closed_deals_df.select(
+    col("seller_id"),
+    col("business_segment"),
+    col("lead_type"),
+    col("lead_behaviour_profile").alias("lead_behavior_profile")
+)
+
+# Join closed deals to MQL to get origin channel
+acquisition_with_source_df = acquisition_df.join(
+    closed_deals_df.select("mql_id", "seller_id"),
+    on="seller_id",
+    how="left"
+).join(
+    mql_df.select(
+        col("mql_id"),
+        col("origin").alias("acquisition_source")
+    ),
+    on="mql_id",
+    how="left"
+).drop("mql_id")
+
 
 
 # =========================================================
@@ -281,6 +325,22 @@ silver_sellers_df = (
 
 )
 
+print("\nApplying Left join acquisition into sellers...")
+# Left join acquisition into sellers
+# Preserve all sellers — 73% won't have acquisition records
+silver_sellers_df = silver_sellers_df.join(
+    acquisition_with_source_df,
+    on="seller_id",
+    how="left"
+)
+
+# Fill unknown acquisition for sellers not in funnel
+silver_sellers_df = silver_sellers_df.fillna(
+    "unknown", 
+    subset=["acquisition_source", "business_segment", 
+            "lead_type", "lead_behavior_profile"]
+)
+
 
 # =========================================================
 # REMOVE DUPLICATED JOIN COLUMN
@@ -331,18 +391,46 @@ print("\nApplying final schema ordering...")
 
 silver_sellers_df = silver_sellers_df.select(
 
+    # -----------------------------------------------------
+    # Seller Identity
+    # -----------------------------------------------------
+
     "seller_id",
+
+    # -----------------------------------------------------
+    # Seller Geography
+    # -----------------------------------------------------
 
     "seller_zip_code_prefix",
 
     "seller_city",
+
     "seller_state",
 
     "median_latitude",
+
     "median_longitude",
 
+    # -----------------------------------------------------
+    # Acquisition Intelligence
+    # -----------------------------------------------------
+
+    "acquisition_source",
+
+    "business_segment",
+
+    "lead_type",
+
+    "lead_behavior_profile",
+
+    # -----------------------------------------------------
+    # Metadata
+    # -----------------------------------------------------
+
     "silver_loaded_at",
+
     "source_system",
+
     "transformation_version"
 
 )

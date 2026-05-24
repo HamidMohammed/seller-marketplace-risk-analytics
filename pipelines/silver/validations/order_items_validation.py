@@ -364,7 +364,17 @@ def run_order_items_validation(
         print(
             "PASSED: Product enrichment validation."
         )
+    
+        print("\n[11] seller_preparation_days VALIDATION")
+    # seller_preparation_days should be non-negative for most records
+    # flag negatives as anomalies, don't delete them
+    negative_prep_days = transformed_df.filter(
+        col("seller_preparation_days") < 0
+    ).count()
 
+    print(f"Negative Preparation Days (anomalies): {negative_prep_days}")
+    # Preserve but document — seller may have received order after limit
+    
     # =====================================================
     # FINAL VALIDATION SUMMARY
     # =====================================================

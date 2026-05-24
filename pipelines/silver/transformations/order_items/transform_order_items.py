@@ -55,7 +55,8 @@ from pyspark.sql.functions import (
     lit,
     to_timestamp,
     when,
-    countDistinct
+    countDistinct,
+    datediff
 )
 
 #from pyspark.sql.window import Window
@@ -440,6 +441,21 @@ silver_order_items_df = (
 
 )
 
+# seller_preparation_days = days from purchase to shipping_limit_date
+silver_order_items_df = silver_order_items_df.withColumn(
+    "seller_preparation_days",
+    datediff(
+        col("shipping_limit_date"),
+        col("order_purchase_timestamp")
+    )
+)
+
+# shipping_pressure_flag = seller had 2 days or less
+silver_order_items_df = silver_order_items_df.withColumn(
+    "shipping_pressure_flag",
+    when(col("seller_preparation_days") <= 2, True).otherwise(False)
+)
+
 # =========================================================
 # METADATA ENRICHMENT
 # =========================================================
@@ -498,6 +514,8 @@ silver_order_items_df.select(
     "freight_value",
     "freight_ratio",
     "seller_count",
+    "seller_preparation_days",
+    "shipping_pressure_flag",
     "is_multi_seller_order"
 ).show(10, truncate=False)
 
