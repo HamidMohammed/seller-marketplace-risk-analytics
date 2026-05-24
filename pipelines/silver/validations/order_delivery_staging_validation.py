@@ -184,3 +184,21 @@ def validate_distance_bucket(df):
     df.groupBy(
         "distance_bucket"
     ).count().show(truncate=False)
+    
+# =========================================================
+# REGION DISTRIBUTION VALIDATION
+# =========================================================
+
+def validate_region_distribution(df):
+
+    print("\nSeller Region Distribution:")
+
+    df.groupBy(
+        "seller_region"
+    ).count().show(truncate=False)
+
+    print("\nCustomer Region Distribution:")
+
+    df.groupBy(
+        "customer_region"
+    ).count().show(truncate=False)

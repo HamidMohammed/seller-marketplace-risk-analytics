@@ -259,6 +259,101 @@ staging_df = staging_df.join(
 
 
 # =========================================================
+# BRAZILIAN MACRO-REGION MAPPING
+# =========================================================
+
+print("\n=================================================")
+print("DERIVING BRAZILIAN MACRO-REGIONS")
+print("=================================================")
+
+# ---------------------------------------------------------
+# Macro Region Definitions
+# ---------------------------------------------------------
+
+southeast = ["SP", "RJ", "MG", "ES"]
+
+south = ["PR", "SC", "RS"]
+
+northeast = [
+    "BA", "SE", "AL", "PE",
+    "PB", "RN", "CE", "PI", "MA"
+]
+
+north = [
+    "PA", "AM", "AC", "RO",
+    "RR", "AP", "TO"
+]
+
+central_west = [
+    "GO", "MT", "MS", "DF"
+]
+
+
+# =========================================================
+# SELLER REGION DERIVATION
+# =========================================================
+
+staging_df = staging_df.withColumn(
+
+    "seller_region",
+
+    when(
+        col("seller_state").isin(southeast),
+        "Southeast"
+
+    ).when(
+        col("seller_state").isin(south),
+        "South"
+
+    ).when(
+        col("seller_state").isin(northeast),
+        "Northeast"
+
+    ).when(
+        col("seller_state").isin(north),
+        "North"
+
+    ).when(
+        col("seller_state").isin(central_west),
+        "Central-West"
+
+    ).otherwise("Unknown")
+)
+
+
+# =========================================================
+# CUSTOMER REGION DERIVATION
+# =========================================================
+
+staging_df = staging_df.withColumn(
+
+    "customer_region",
+
+    when(
+        col("customer_state").isin(southeast),
+        "Southeast"
+
+    ).when(
+        col("customer_state").isin(south),
+        "South"
+
+    ).when(
+        col("customer_state").isin(northeast),
+        "Northeast"
+
+    ).when(
+        col("customer_state").isin(north),
+        "North"
+
+    ).when(
+        col("customer_state").isin(central_west),
+        "Central-West"
+
+    ).otherwise("Unknown")
+)
+
+
+# =========================================================
 # DISTANCE BUCKET DERIVATION
 # =========================================================
 
@@ -267,23 +362,24 @@ print("DERIVING DISTANCE BUCKETS")
 print("=================================================")
 
 staging_df = staging_df.withColumn(
+
     "distance_bucket",
 
     when(
-        col("seller_state") == col("customer_state"),
-        "Same State"
-    ).when(
-        col("seller_state").isin(
-            ["SP", "RJ", "MG", "ES"]
-        ) &
-        col("customer_state").isin(
-            ["SP", "RJ", "MG", "ES"]
-        ),
-        "Same Region"
-    ).when(
         col("seller_state").isNull() |
         col("customer_state").isNull(),
         "Unknown"
+
+    ).when(
+        col("seller_state") ==
+        col("customer_state"),
+        "Same State"
+
+    ).when(
+        col("seller_region") ==
+        col("customer_region"),
+        "Same Region"
+
     ).otherwise(
         "Cross Region"
     )
@@ -363,6 +459,10 @@ staging_df = staging_df.select(
     "seller_state",
     "customer_state",
 
+    # NEW REGION COLUMNS
+    "seller_region",
+    "customer_region",
+
     "seller_lat",
     "seller_lng",
 
@@ -373,7 +473,6 @@ staging_df = staging_df.select(
     "source_system",
     "transformation_version"
 )
-
 
 # =========================================================
 # VALIDATIONS

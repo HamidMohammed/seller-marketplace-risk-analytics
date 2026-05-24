@@ -326,6 +326,7 @@ staging_df = staging_df.select(
     "seller_monthly_orders",
 
     "workload_bucket",
+    "is_overloaded_seller",
 
     "silver_loaded_at",
     "source_system",
