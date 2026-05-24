@@ -34,6 +34,7 @@ paths:
     seller_fulfillment_staging: data/silver/seller_fulfillment_staging/
     reviews_staging: data/silver/reviews_staging/
     seller_acquisition_staging: data/silver/seller_acquisition_staging/
+    sales_staging: data/silver/sales_staging/
 
 metadata:
   source_system: olist
