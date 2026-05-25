@@ -37,6 +37,9 @@ paths:
     sales_staging: data/silver/sales_staging/
     seller_performance_monthly_staging: data/silver/seller_performance_monthly_staging/
 
+  gold:
+    dim_date: data/gold/dim_date/
+
 metadata:
   source_system: olist
   transformation_version: v1
