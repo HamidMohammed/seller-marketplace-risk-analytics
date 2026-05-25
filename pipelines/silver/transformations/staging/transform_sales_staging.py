@@ -53,7 +53,8 @@ from pyspark.sql.functions import (
     when,
     current_timestamp,
     count,
-    lit
+    lit,
+    max
 )
 
 from pyspark.sql.window import Window
@@ -155,7 +156,7 @@ payments_agg_df = payments_df.groupBy(
         "total_payment_value"
     ),
 
-    sum("payment_installments").alias(
+    max("payment_installments").alias(
         "total_payment_installments"
     )
 )
@@ -318,7 +319,7 @@ staging_df = staging_df.withColumn(
     "seller_item_count_in_order",
     count("order_item_id").over(
         seller_order_window
-    )
+    ).cast("int")
 )
 
 # =========================================================
