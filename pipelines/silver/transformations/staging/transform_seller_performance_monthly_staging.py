@@ -160,6 +160,35 @@ print(f"Fulfillment Rows: {fulfillment_df.count()}")
 
 
 # =========================================================
+# FILTER SINGLE-SELLER ACCOUNTABILITY
+# =========================================================
+
+"""
+IMPORTANT BUSINESS RULE:
+
+This staging dataset models:
+SELLER ACCOUNTABILITY PERFORMANCE
+
+Multi-seller orders are excluded because:
+customer-level delivery outcomes cannot be
+reliably attributed to one seller operationally.
+
+This preserves:
+- KPI accountability clarity
+- non-duplicated seller metrics
+- trusted seller performance scoring
+"""
+
+delivery_df = delivery_df.filter(
+    col("is_multi_seller_order") == False
+)
+
+reviews_df = reviews_df.filter(
+    col("is_multi_seller_order") == False
+)
+
+
+# =========================================================
 # DELIVERY PERFORMANCE AGGREGATION
 # =========================================================
 
@@ -438,7 +467,7 @@ staging_df = staging_df.select(
 
 
 # =========================================================
-# VOLUME GROWTH RATE
+# TEMPORAL PERFORMANCE METRICS
 # =========================================================
 
 print("\n=================================================")
@@ -452,6 +481,10 @@ growth_window = Window.partitionBy(
     "performance_month"
 )
 
+# ---------------------------------------------------------
+# Previous Month Orders
+# ---------------------------------------------------------
+
 staging_df = staging_df.withColumn(
 
     "previous_month_orders",
@@ -461,20 +494,73 @@ staging_df = staging_df.withColumn(
     )
 )
 
+# ---------------------------------------------------------
+# New Seller Lifecycle Flag
+# ---------------------------------------------------------
+
+staging_df = staging_df.withColumn(
+
+    "is_new_seller_month",
+
+    when(
+        col("previous_month_orders").isNull(),
+        True
+    ).otherwise(False)
+)
+
+# ---------------------------------------------------------
+# Volume Growth Rate
+# ---------------------------------------------------------
+
 staging_df = staging_df.withColumn(
 
     "volume_growth_rate",
 
     when(
+        col("is_new_seller_month") == True,
+        None
+
+    ).when(
         col("previous_month_orders") > 0,
 
         (
-            col("monthly_orders") -
-            col("previous_month_orders")
-        ) /
-        col("previous_month_orders")
+            col("monthly_orders")
+            - col("previous_month_orders")
+        ) / col("previous_month_orders")
+    )
+)
 
-    ).otherwise(None)
+# ---------------------------------------------------------
+# Seller Growth Category
+# ---------------------------------------------------------
+
+staging_df = staging_df.withColumn(
+
+    "seller_growth_category",
+
+    when(
+        col("is_new_seller_month") == True,
+
+        "New Seller"
+
+    ).when(
+        col("volume_growth_rate") >= 0.50,
+
+        "High Growth"
+
+    ).when(
+        col("volume_growth_rate") > 0,
+
+        "Moderate Growth"
+
+    ).when(
+        col("volume_growth_rate") < 0,
+
+        "Declining"
+
+    ).otherwise(
+        "Stable"
+    )
 )
 
 
@@ -482,13 +568,12 @@ staging_df = staging_df.withColumn(
 # PERFORMANCE RISK CATEGORY
 # =========================================================
 
-
 staging_df = staging_df.withColumn(
 
     "seller_performance_category",
 
     when(
-        col("previous_month_orders").isNull(),
+        col("is_new_seller_month") == True,
 
         "New Seller"
 
@@ -504,7 +589,7 @@ staging_df = staging_df.withColumn(
 
     ).when(
         (
-            col("monthly_orders") >= 10
+            col("monthly_orders") >= 5
         ) &
         (
             (
@@ -583,7 +668,11 @@ staging_df = staging_df.select(
 
     "previous_month_orders",
 
+    "is_new_seller_month",
+
     "volume_growth_rate",
+
+    "seller_growth_category",
 
     "seller_performance_category",
 
@@ -638,6 +727,6 @@ print(f"Final Row Count: {staging_df.count()}")
 
 staging_df.printSchema()
 
-staging_df.show(5, truncate=True)
+
 
 spark.stop()
