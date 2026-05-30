@@ -1,26 +1,16 @@
+
 """
 transform_orders.py
 
 Objective:
 Transform Bronze orders dataset into trusted Silver orders dataset.
 
-Pipeline Responsibilities:
-- Read Bronze parquet
-- Standardize schema
-- Cast timestamps
-- Generate delivery intelligence metrics
-- Apply Silver enrichment
-- Run business validations
-- Write trusted Silver parquet
-
-Project:
-Olist Seller Intelligence Platform
-
-Layer:
-Silver
-
-Dataset:
-silver_orders
+Hardening Version:
+- Lifecycle chronology validation
+- Quarantine architecture
+- Advanced delivery metrics
+- Operational delivery intelligence
+- Business-truth preservation
 
 Dataset Grain:
 ONE ROW = ONE CUSTOMER ORDER
@@ -34,7 +24,10 @@ import sys
 import os
 
 project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../../../")
+    os.path.join(
+        os.path.dirname(__file__),
+        "../../../../"
+    )
 )
 
 if project_root not in sys.path:
@@ -50,6 +43,7 @@ print(f"Project Root Added: {project_root}")
 from pyspark.sql import SparkSession
 
 from pyspark.sql.functions import (
+
     col,
     lower,
     trim,
@@ -57,7 +51,9 @@ from pyspark.sql.functions import (
     datediff,
     when,
     current_timestamp,
-    lit
+    lit,
+    abs
+
 )
 
 from pipelines.silver.utils.config_loader import (
@@ -68,15 +64,18 @@ from pipelines.silver.validations.orders_validation import (
     run_orders_validation
 )
 
+from pipelines.silver.utils.spark_session import (
+    create_spark_session
+)
+
 
 # =========================================================
 # CREATE SPARK SESSION
 # =========================================================
 
-spark = SparkSession.builder \
-    .appName("TransformSilverOrders") \
-    .getOrCreate()
-
+spark = create_spark_session(
+    "TransformSilverOrders"
+)
 
 # =========================================================
 # LOAD CONFIGURATION
@@ -84,13 +83,25 @@ spark = SparkSession.builder \
 
 config = load_config()
 
-BRONZE_ORDERS_PATH = config["paths"]["bronze"]["orders"]
+BRONZE_ORDERS_PATH = (
+    config["paths"]["bronze"]["orders"]
+)
 
-SILVER_ORDERS_PATH = config["paths"]["silver"]["orders"]
+SILVER_ORDERS_PATH = (
+    config["paths"]["silver"]["orders"]
+)
 
-SOURCE_SYSTEM = config["metadata"]["source_system"]
+SILVER_ORDERS_QUARANTINE_PATH = (
+    config["paths"]["silver"]["orders_quarantine"]
+)
 
-TRANSFORMATION_VERSION = config["metadata"]["transformation_version"]
+SOURCE_SYSTEM = (
+    config["metadata"]["source_system"]
+)
+
+TRANSFORMATION_VERSION = (
+    config["metadata"]["transformation_version"]
+)
 
 
 # =========================================================
@@ -105,259 +116,492 @@ bronze_orders_df = spark.read.parquet(
     BRONZE_ORDERS_PATH
 )
 
-print(f"Bronze Orders Count: {bronze_orders_df.count()}")
-
-
-# =========================================================
-# INITIAL DATA INSPECTION
-# =========================================================
-
-print("\n=================================================")
-print("BRONZE ORDERS SCHEMA")
-print("=================================================")
-
-bronze_orders_df.printSchema()
-
-
-# =========================================================
-# START TRANSFORMATIONS
-# =========================================================
-
-print("\n=================================================")
-print("STARTING SILVER TRANSFORMATIONS")
-print("=================================================")
+print(
+    f"Bronze Orders Count: "
+    f"{bronze_orders_df.count()}"
+)
 
 silver_orders_df = bronze_orders_df
 
 
 # =========================================================
-# 1. STANDARDIZE ORDER STATUS
+# STANDARDIZE STATUS
 # =========================================================
 
-"""
-Purpose:
-- KPI consistency
-- Prevent casing inconsistencies
-- Improve grouping reliability
-"""
-
 silver_orders_df = silver_orders_df.withColumn(
+
     "order_status",
+
     lower(
-        trim(col("order_status"))
+        trim(
+            col("order_status")
+        )
     )
 )
 
 
 # =========================================================
-# 2. CAST TIMESTAMP COLUMNS
+# CAST TIMESTAMPS
 # =========================================================
 
-"""
-Purpose:
-- lifecycle analytics
-- delivery calculations
-- timestamp validation
-"""
-
 timestamp_columns = [
+
     "order_purchase_timestamp",
     "order_approved_at",
     "order_delivered_carrier_date",
     "order_delivered_customer_date",
     "order_estimated_delivery_date"
+
 ]
 
 for column_name in timestamp_columns:
 
     silver_orders_df = silver_orders_df.withColumn(
+
         column_name,
-        to_timestamp(col(column_name))
+
+        to_timestamp(
+            col(column_name)
+        )
     )
 
 
 # =========================================================
-# 3. DELIVERY DURATION METRIC
+# DELIVERY METRICS
 # =========================================================
 
-"""
-Measures:
-actual customer delivery duration
-"""
-
 silver_orders_df = silver_orders_df.withColumn(
+
     "delivery_duration_days",
 
     datediff(
-        col("order_delivered_customer_date"),
-        col("order_purchase_timestamp")
+        col(
+            "order_delivered_customer_date"
+        ),
+        col(
+            "order_purchase_timestamp"
+        )
     )
 )
 
-
-# =========================================================
-# 4. DELIVERY DELAY METRIC
-# =========================================================
-
-"""
-Positive:
-Late delivery
-
-Negative:
-Early delivery
-
-Zero:
-On-time delivery
-"""
-
 silver_orders_df = silver_orders_df.withColumn(
+
     "delay_days",
 
     datediff(
-        col("order_delivered_customer_date"),
-        col("order_estimated_delivery_date")
+        col(
+            "order_delivered_customer_date"
+        ),
+        col(
+            "order_estimated_delivery_date"
+        )
     )
 )
 
-
-# =========================================================
-# 5. ESTIMATED DELIVERY WINDOW
-# =========================================================
-
 silver_orders_df = silver_orders_df.withColumn(
+
     "estimated_delivery_window_days",
 
     datediff(
-        col("order_estimated_delivery_date"),
-        col("order_purchase_timestamp")
+        col(
+            "order_estimated_delivery_date"
+        ),
+        col(
+            "order_purchase_timestamp"
+        )
     )
 )
 
 
 # =========================================================
-# 6. DELIVERY STATUS CATEGORY
+# DELIVERY STATUS CATEGORY
 # =========================================================
 
-"""
-Business-friendly KPI classification
-"""
-
 silver_orders_df = silver_orders_df.withColumn(
+
     "delivery_status_category",
 
     when(
         col("delay_days") > 0,
         "Late"
-    ).when(
+    )
+
+    .when(
         col("delay_days") < 0,
         "Early"
-    ).when(
+    )
+
+    .when(
         col("delay_days") == 0,
         "On Time"
-    ).otherwise(
+    )
+
+    .otherwise(
         "Unknown"
     )
 )
 
 
 # =========================================================
-# 7. SUCCESSFUL DELIVERY FLAG
+# DELIVERY STATUS DETAIL
 # =========================================================
 
 silver_orders_df = silver_orders_df.withColumn(
+
+    "delivery_status_detail",
+
+    when(
+        col("delay_days") <= -7,
+        "Very Early"
+    )
+
+    .when(
+        col("delay_days") < 0,
+        "Early"
+    )
+
+    .when(
+        col("delay_days") == 0,
+        "On Time"
+    )
+
+    .when(
+        col("delay_days") <= 7,
+        "Slightly Late"
+    )
+
+    .otherwise(
+        "Severely Late"
+    )
+)
+
+
+# =========================================================
+# DELIVERY FLAG
+# =========================================================
+
+silver_orders_df = silver_orders_df.withColumn(
+
     "is_successfully_delivered",
 
     when(
-        col("order_status") == "delivered",
+        col("order_status")
+        == "delivered",
         1
     ).otherwise(0)
 )
 
 
 # =========================================================
-# 8. SILVER METADATA COLUMNS
+# ADVANCED LIFECYCLE METRICS
 # =========================================================
 
-"""
-Enterprise lineage metadata
-"""
+silver_orders_df = silver_orders_df.withColumn(
+
+    "handling_days",
+
+    datediff(
+        col(
+            "order_delivered_carrier_date"
+        ),
+        col(
+            "order_approved_at"
+        )
+    )
+)
 
 silver_orders_df = silver_orders_df.withColumn(
+
+    "shipping_days",
+
+    datediff(
+        col(
+            "order_delivered_customer_date"
+        ),
+        col(
+            "order_delivered_carrier_date"
+        )
+    )
+)
+
+silver_orders_df = silver_orders_df.withColumn(
+
+    "total_lead_time",
+
+    datediff(
+        col(
+            "order_delivered_customer_date"
+        ),
+        col(
+            "order_purchase_timestamp"
+        )
+    )
+)
+
+silver_orders_df = silver_orders_df.withColumn(
+
+    "days_diff_estimated",
+
+    datediff(
+        col(
+            "order_delivered_customer_date"
+        ),
+        col(
+            "order_estimated_delivery_date"
+        )
+    )
+)
+
+silver_orders_df = silver_orders_df.withColumn(
+
+    "estimated_buffer",
+
+    datediff(
+        col(
+            "order_estimated_delivery_date"
+        ),
+        col(
+            "order_purchase_timestamp"
+        )
+    )
+
+    -
+
+    datediff(
+        col(
+            "order_delivered_customer_date"
+        ),
+        col(
+            "order_purchase_timestamp"
+        )
+    )
+)
+
+silver_orders_df = silver_orders_df.withColumn(
+
+    "abs_days_diff",
+
+    abs(
+        col("days_diff_estimated")
+    )
+)
+
+
+# =========================================================
+# QUARANTINE
+# =========================================================
+
+chronology_violation_df = silver_orders_df.filter(
+
+    (
+
+        col("order_approved_at").isNotNull()
+
+        &
+
+        (
+            col(
+                "order_purchase_timestamp"
+            )
+            >
+            col(
+                "order_approved_at"
+            )
+        )
+
+    )
+
+    |
+
+    (
+
+        col(
+            "order_delivered_carrier_date"
+        ).isNotNull()
+
+        &
+
+        (
+            col("order_approved_at")
+            >
+            col(
+                "order_delivered_carrier_date"
+            )
+        )
+
+    )
+
+    |
+
+    (
+
+        col(
+            "order_delivered_customer_date"
+        ).isNotNull()
+
+        &
+
+        (
+            col(
+                "order_delivered_carrier_date"
+            )
+            >
+            col(
+                "order_delivered_customer_date"
+            )
+        )
+
+    )
+
+).withColumn(
+
+    "quarantine_reason",
+
+    lit(
+        "CHRONOLOGY_VIOLATION"
+    )
+)
+
+missing_delivery_df = silver_orders_df.filter(
+
+    (
+        col("order_status")
+        == "delivered"
+    )
+
+    &
+
+    (
+        col(
+            "order_delivered_customer_date"
+        ).isNull()
+    )
+
+).withColumn(
+
+    "quarantine_reason",
+
+    lit(
+        "DELIVERED_WITHOUT_DELIVERY_DATE"
+    )
+)
+
+orders_quarantine_df = (
+
+    chronology_violation_df
+
+    .unionByName(
+        missing_delivery_df
+    )
+)
+
+
+# =========================================================
+# CLEAN DATASET
+# =========================================================
+
+clean_orders_df = silver_orders_df.join(
+
+    orders_quarantine_df.select(
+        "order_id"
+    ),
+
+    on="order_id",
+
+    how="left_anti"
+)
+
+
+# =========================================================
+# METADATA
+# =========================================================
+
+clean_orders_df = clean_orders_df.withColumn(
+
     "silver_loaded_at",
+
     current_timestamp()
 )
 
-silver_orders_df = silver_orders_df.withColumn(
+clean_orders_df = clean_orders_df.withColumn(
+
     "source_system",
-    lit(SOURCE_SYSTEM)
+
+    lit(
+        SOURCE_SYSTEM
+    )
 )
 
-silver_orders_df = silver_orders_df.withColumn(
+clean_orders_df = clean_orders_df.withColumn(
+
     "transformation_version",
-    lit(TRANSFORMATION_VERSION)
+
+    lit(
+        TRANSFORMATION_VERSION
+    )
 )
 
 
 # =========================================================
-# RUN ORDERS VALIDATION SUITE
+# VALIDATIONS
 # =========================================================
 
 run_orders_validation(
+
     source_df=bronze_orders_df,
-    transformed_df=silver_orders_df
+
+    transformed_df=clean_orders_df,
+
+    quarantine_df=orders_quarantine_df
+
 )
 
 
 # =========================================================
-# FINAL DATA PREVIEW
+# WRITE QUARANTINE
 # =========================================================
 
-print("\n=================================================")
-print("SILVER ORDERS PREVIEW")
-print("=================================================")
-
-silver_orders_df.select(
-    "order_id",
-    "order_status",
-    "delivery_duration_days",
-    "delay_days",
-    "delivery_status_category",
-    "is_successfully_delivered"
-).show(10, truncate=False)
-
-
-# =========================================================
-# WRITE SILVER DATASET
-# =========================================================
-
-print("\n=================================================")
-print("WRITING SILVER ORDERS")
-print("=================================================")
-
-silver_orders_df.write \
+orders_quarantine_df.write \
     .mode("overwrite") \
-    .parquet(SILVER_ORDERS_PATH)
-
-print(f"Silver Orders Written To: {SILVER_ORDERS_PATH}")
+    .parquet(
+        SILVER_ORDERS_QUARANTINE_PATH
+    )
 
 
 # =========================================================
-# FINAL ROW COUNT
+# WRITE CLEAN SILVER
+# =========================================================
+
+clean_orders_df.write \
+    .mode("overwrite") \
+    .parquet(
+        SILVER_ORDERS_PATH
+    )
+
+
+# =========================================================
+# FINAL SUMMARY
 # =========================================================
 
 print("\n=================================================")
-print("FINAL ROW COUNT")
+print("ORDERS HARDENING COMPLETED")
 print("=================================================")
 
-print(f"Silver Orders Count: {silver_orders_df.count()}")
+print(
+    f"Clean Orders: "
+    f"{clean_orders_df.count()}"
+)
 
+print(
+    f"Quarantined Orders: "
+    f"{orders_quarantine_df.count()}"
+)
 
-# =========================================================
-# STOP SPARK SESSION
-# =========================================================
+silver_orders_df.filter(
+    col("order_delivered_customer_date").isNull()
+).groupBy(
+    "order_status"
+).count().show(truncate=False)
 
 spark.stop()
 
-print("\n=================================================")
-print("SILVER ORDERS TRANSFORMATION COMPLETED")
-print("=================================================")

@@ -1,3 +1,4 @@
+
 # =========================================================
 # PROJECT ROOT SETUP
 # =========================================================
@@ -15,13 +16,11 @@ if project_root not in sys.path:
 print(f"Project Root Added: {project_root}")
 
 # =========================================================
-# ORDERS VALIDATION MODULE
+# IMPORTS
 # =========================================================
 
 from pyspark.sql.functions import (
-    col,
-    count,
-    when
+    col
 )
 
 from pipelines.silver.validations.validation_utils import (
@@ -31,16 +30,11 @@ from pipelines.silver.validations.validation_utils import (
 )
 
 
-
 # =========================================================
 # VALIDATE ORDER GRAIN
 # =========================================================
 
 def validate_order_grain(df):
-    """
-    Validate:
-    One row = one unique order.
-    """
 
     print("\n[VALIDATION] Order Grain Integrity")
 
@@ -55,17 +49,16 @@ def validate_order_grain(df):
 # =========================================================
 
 def validate_critical_nulls(df):
-    """
-    Validate important lifecycle fields.
-    """
 
     print("\n[VALIDATION] Critical Null Analysis")
 
     critical_columns = [
+
         "order_id",
         "customer_id",
         "order_status",
         "order_purchase_timestamp"
+
     ]
 
     validate_nulls(
@@ -75,17 +68,15 @@ def validate_critical_nulls(df):
 
 
 # =========================================================
-# VALIDATE ORDER STATUS VALUES
+# VALIDATE ORDER STATUS
 # =========================================================
 
 def validate_order_status(df):
-    """
-    Validate allowed order statuses.
-    """
 
     print("\n[VALIDATION] Order Status Categories")
 
     allowed_statuses = [
+
         "created",
         "approved",
         "invoiced",
@@ -94,169 +85,347 @@ def validate_order_status(df):
         "delivered",
         "unavailable",
         "canceled"
+
     ]
 
     invalid_status_df = df.filter(
-        ~col("order_status").isin(allowed_statuses)
+
+        ~col("order_status").isin(
+            allowed_statuses
+        )
+
     )
 
     invalid_count = invalid_status_df.count()
 
     if invalid_count > 0:
 
-        print(f"[FAILED] Invalid order statuses found: {invalid_count}")
+        print(
+            f"[FAILED] Invalid statuses found: "
+            f"{invalid_count}"
+        )
 
-        invalid_status_df.select("order_status").distinct().show(
+        invalid_status_df.select(
+            "order_status"
+        ).distinct().show(
             truncate=False
         )
 
     else:
-        print("[PASSED] All order statuses are valid")
+
+        print(
+            "[PASSED] All order statuses valid"
+        )
 
 
 # =========================================================
-# VALIDATE PURCHASE → APPROVAL LOGIC
+# PURCHASE → APPROVAL
 # =========================================================
 
 def validate_purchase_approval_sequence(df):
-    """
-    Validate:
-    purchase_timestamp <= approval_timestamp
-    """
 
-    print("\n[VALIDATION] Purchase → Approval Sequence")
+    print(
+        "\n[VALIDATION] Purchase → Approval"
+    )
 
-    invalid_df = df.filter(
+    invalid_count = df.filter(
+
         (
             col("order_approved_at").isNotNull()
-        ) &
+        )
+
+        &
+
         (
             col("order_purchase_timestamp")
-            > col("order_approved_at")
+            >
+            col("order_approved_at")
         )
+
+    ).count()
+
+    print(
+        f"Invalid Purchase/Approval: "
+        f"{invalid_count}"
     )
 
-    invalid_count = invalid_df.count()
 
-    if invalid_count > 0:
+# =========================================================
+# APPROVAL → CARRIER
+# =========================================================
 
-        print(
-            f"[FAILED] Invalid purchase/approval sequence rows: "
-            f"{invalid_count}"
+def validate_approval_carrier_sequence(df):
+
+    print(
+        "\n[VALIDATION] Approval → Carrier"
+    )
+
+    invalid_count = df.filter(
+
+        (
+            col(
+                "order_delivered_carrier_date"
+            ).isNotNull()
         )
 
-    else:
-        print("[PASSED] Purchase/approval lifecycle valid")
+        &
 
-
-# =========================================================
-# VALIDATE APPROVAL → DELIVERY LOGIC
-# =========================================================
-
-def validate_approval_delivery_sequence(df):
-    """
-    Validate:
-    approval_timestamp <= customer_delivery_timestamp
-    """
-
-    print("\n[VALIDATION] Approval → Delivery Sequence")
-
-    invalid_df = df.filter(
-        (
-            col("order_delivered_customer_date").isNotNull()
-        ) &
         (
             col("order_approved_at")
-            > col("order_delivered_customer_date")
+            >
+            col(
+                "order_delivered_carrier_date"
+            )
         )
+
+    ).count()
+
+    print(
+        f"Invalid Approval/Carrier: "
+        f"{invalid_count}"
     )
-
-    invalid_count = invalid_df.count()
-
-    if invalid_count > 0:
-
-        print(
-            f"[FAILED] Invalid approval/delivery sequence rows: "
-            f"{invalid_count}"
-        )
-
-    else:
-        print("[PASSED] Approval/delivery lifecycle valid")
 
 
 # =========================================================
-# VALIDATE DELIVERED ORDERS HAVE DELIVERY DATE
+# CARRIER → CUSTOMER
+# =========================================================
+
+def validate_carrier_customer_sequence(df):
+
+    print(
+        "\n[VALIDATION] Carrier → Customer"
+    )
+
+    invalid_count = df.filter(
+
+        (
+            col(
+                "order_delivered_customer_date"
+            ).isNotNull()
+        )
+
+        &
+
+        (
+            col(
+                "order_delivered_carrier_date"
+            )
+            >
+            col(
+                "order_delivered_customer_date"
+            )
+        )
+
+    ).count()
+
+    print(
+        f"Invalid Carrier/Customer: "
+        f"{invalid_count}"
+    )
+
+
+# =========================================================
+# CHRONOLOGY SUMMARY
+# =========================================================
+
+def validate_chronology_violations(df):
+
+    print(
+        "\n[VALIDATION] Chronology Integrity"
+    )
+
+    chronology_count = df.filter(
+
+        (
+            (
+                col("order_approved_at").isNotNull()
+            )
+
+            &
+
+            (
+                col("order_purchase_timestamp")
+                >
+                col("order_approved_at")
+            )
+        )
+
+        |
+
+        (
+            (
+                col(
+                    "order_delivered_carrier_date"
+                ).isNotNull()
+            )
+
+            &
+
+            (
+                col("order_approved_at")
+                >
+                col(
+                    "order_delivered_carrier_date"
+                )
+            )
+        )
+
+        |
+
+        (
+            (
+                col(
+                    "order_delivered_customer_date"
+                ).isNotNull()
+            )
+
+            &
+
+            (
+                col(
+                    "order_delivered_carrier_date"
+                )
+                >
+                col(
+                    "order_delivered_customer_date"
+                )
+            )
+        )
+
+    ).count()
+
+    print(
+        f"Chronology Violations: "
+        f"{chronology_count}"
+    )
+
+
+# =========================================================
+# DELIVERED ORDERS
 # =========================================================
 
 def validate_delivered_orders(df):
-    """
-    Delivered orders must contain delivery timestamp.
-    """
 
-    print("\n[VALIDATION] Delivered Orders Integrity")
-
-    invalid_df = df.filter(
-        (
-            col("order_status") == "delivered"
-        ) &
-        (
-            col("order_delivered_customer_date").isNull()
-        )
+    print(
+        "\n[VALIDATION] Delivered Orders"
     )
 
-    invalid_count = invalid_df.count()
+    invalid_count = df.filter(
 
-    if invalid_count > 0:
-
-        print(
-            f"[FAILED] Delivered orders missing delivery date: "
-            f"{invalid_count}"
+        (
+            col("order_status")
+            == "delivered"
         )
 
-    else:
-        print("[PASSED] Delivered orders contain delivery timestamps")
+        &
+
+        (
+            col(
+                "order_delivered_customer_date"
+            ).isNull()
+        )
+
+    ).count()
+
+    print(
+        f"Delivered Orders Missing Date: "
+        f"{invalid_count}"
+    )
 
 
 # =========================================================
-# VALIDATE DELIVERY METRICS
+# DELIVERY METRICS
 # =========================================================
 
 def validate_delivery_metrics(df):
-    """
-    Validate delivery metric logic.
-    """
 
-    print("\n[VALIDATION] Delivery Metrics")
+    print(
+        "\n[VALIDATION] Delivery Metrics"
+    )
 
-    # Negative delivery duration
     negative_duration = df.filter(
         col("delivery_duration_days") < 0
     ).count()
 
-    # Extreme delay values
     extreme_delay = df.filter(
         col("delay_days") > 365
     ).count()
 
-    if negative_duration > 0:
+    print(
+        f"Negative Delivery Duration: "
+        f"{negative_duration}"
+    )
 
-        print(
-            f"[FAILED] Negative delivery durations found: "
-            f"{negative_duration}"
-        )
+    print(
+        f"Extreme Delay Orders: "
+        f"{extreme_delay}"
+    )
 
-    else:
-        print("[PASSED] Delivery durations valid")
 
-    if extreme_delay > 0:
+# =========================================================
+# NEW METRICS VALIDATION
+# =========================================================
 
-        print(
-            f"[WARNING] Extremely delayed deliveries found: "
-            f"{extreme_delay}"
-        )
+def validate_new_metrics(df):
 
-    else:
-        print("[PASSED] Delay distribution looks reasonable")
+    print(
+        "\n[VALIDATION] Derived Metrics"
+    )
+
+    negative_handling = df.filter(
+        col("handling_days") < 0
+    ).count()
+
+    negative_shipping = df.filter(
+        col("shipping_days") < 0
+    ).count()
+
+    negative_lead_time = df.filter(
+        col("total_lead_time") < 0
+    ).count()
+
+    print(
+        f"Negative Handling Days: "
+        f"{negative_handling}"
+    )
+
+    print(
+        f"Negative Shipping Days: "
+        f"{negative_shipping}"
+    )
+
+    print(
+        f"Negative Lead Time: "
+        f"{negative_lead_time}"
+    )
+
+
+# =========================================================
+# QUARANTINE VALIDATION
+# =========================================================
+
+def validate_quarantine_counts(
+    quarantine_df
+):
+
+    print(
+        "\n[VALIDATION] Quarantine Summary"
+    )
+
+    total_quarantined = (
+        quarantine_df.count()
+    )
+
+    print(
+        f"Total Quarantined Orders: "
+        f"{total_quarantined}"
+    )
+
+    quarantine_df.groupBy(
+        "quarantine_reason"
+    ).count().show(
+        truncate=False
+    )
 
 
 # =========================================================
@@ -264,60 +433,83 @@ def validate_delivery_metrics(df):
 # =========================================================
 
 def run_orders_validation(
+
     source_df,
-    transformed_df
+    transformed_df,
+    quarantine_df
+
 ):
-    """
-    Run full validation suite for silver_orders.
-    """
 
-    print("\n=================================================")
-    print("RUNNING SILVER ORDERS VALIDATION")
-    print("=================================================")
+    print(
+        "\n================================================="
+    )
 
-    # -------------------------------------------------
-    # Row Count Validation
-    # -------------------------------------------------
+    print(
+        "RUNNING SILVER ORDERS VALIDATION"
+    )
+
+    print(
+        "================================================="
+    )
 
     validate_row_count(
         source_df=source_df,
         transformed_df=transformed_df
     )
 
-    # -------------------------------------------------
-    # Grain Validation
-    # -------------------------------------------------
+    validate_order_grain(
+        transformed_df
+    )
 
-    validate_order_grain(transformed_df)
+    validate_critical_nulls(
+        transformed_df
+    )
 
-    # -------------------------------------------------
-    # Null Validation
-    # -------------------------------------------------
+    validate_order_status(
+        transformed_df
+    )
 
-    validate_critical_nulls(transformed_df)
+    validate_purchase_approval_sequence(
+        transformed_df
+    )
 
-    # -------------------------------------------------
-    # Status Validation
-    # -------------------------------------------------
+    validate_approval_carrier_sequence(
+        transformed_df
+    )
 
-    validate_order_status(transformed_df)
+    validate_carrier_customer_sequence(
+        transformed_df
+    )
 
-    # -------------------------------------------------
-    # Lifecycle Validation
-    # -------------------------------------------------
+    validate_chronology_violations(
+        transformed_df
+    )
 
-    validate_purchase_approval_sequence(transformed_df)
+    validate_delivered_orders(
+        transformed_df
+    )
 
-    validate_approval_delivery_sequence(transformed_df)
+    validate_delivery_metrics(
+        transformed_df
+    )
 
-    validate_delivered_orders(transformed_df)
+    validate_new_metrics(
+        transformed_df
+    )
 
-    # -------------------------------------------------
-    # Metric Validation
-    # -------------------------------------------------
+    validate_quarantine_counts(
+        quarantine_df
+    )
 
-    validate_delivery_metrics(transformed_df)
+    print(
+        "\n================================================="
+    )
 
-    print("\n=================================================")
-    print("ORDERS VALIDATION COMPLETED")
-    print("=================================================")
+    print(
+        "ORDERS VALIDATION COMPLETED"
+    )
+
+    print(
+        "================================================="
+    )
+

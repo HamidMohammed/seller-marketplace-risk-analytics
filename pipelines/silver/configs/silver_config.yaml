@@ -36,9 +36,24 @@ paths:
     seller_acquisition_staging: data/silver/seller_acquisition_staging/
     sales_staging: data/silver/sales_staging/
     seller_performance_monthly_staging: data/silver/seller_performance_monthly_staging/
+    orders: data/silver/orders/
 
-  gold:
-    dim_date: data/gold/dim_date/
+    orders_quarantine:
+      data/silver/quarantine/orders/
+
+    order_items_quarantine:
+      data/silver/quarantine/order_items/
+
+    reviews_quarantine:
+      data/silver/quarantine/reviews/
+
+    payments_quarantine:
+      data/silver/quarantine/payments/
+
+    products_quarantine:
+      data/silver/quarantine/products/
+    # gold:
+    #   dim_date: data/gold/dim_date/
 
 metadata:
   source_system: olist
