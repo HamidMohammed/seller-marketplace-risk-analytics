@@ -49,13 +49,19 @@ print(f"Project Root Added: {project_root}")
 # =========================================================
 
 from pyspark.sql.functions import (
+
     col,
     trim,
     current_timestamp,
     lit,
     when,
-    to_timestamp
+    to_timestamp,
+    datediff,
+    row_number
+
 )
+
+from pyspark.sql.window import Window
 
 from pyspark.sql.types import (
     IntegerType
@@ -105,6 +111,14 @@ SILVER_REVIEWS_PATH = (
     config["paths"]["silver"]["reviews"]
 )
 
+SILVER_ORDERS_PATH = (
+    config["paths"]["silver"]["orders"]
+)
+
+SILVER_REVIEWS_QUARANTINE_PATH = (
+    config["paths"]["silver"]["reviews_quarantine"]
+)
+
 # ---------------------------------------------------------
 # Metadata Configuration
 # ---------------------------------------------------------
@@ -134,7 +148,25 @@ print(
     f"Bronze Reviews Count: "
     f"{reviews_df.count()}"
 )
+print("\n=================================================")
+print("LOADING SILVER ORDERS DATASET")
+print("=================================================")
 
+
+orders_df = spark.read.parquet(
+    SILVER_ORDERS_PATH
+)
+
+orders_df = orders_df.select(
+
+    "order_id",
+
+    "delivery_duration_days",
+
+    "delay_days",
+
+    "delivery_status_category"
+)
 
 # =========================================================
 # INITIAL DATA INSPECTION
@@ -295,20 +327,318 @@ silver_reviews_df = (
 
 )
 
+# =========================================================
+# REVIEW DEDUPLICATION
+# =========================================================
+
+print("\nApplying review deduplication...")
+
+review_window = Window.partitionBy(
+    "review_id"
+).orderBy(
+    col(
+        "review_answer_timestamp"
+    ).desc_nulls_last()
+)
+
+silver_reviews_df = (
+
+    silver_reviews_df
+
+    .withColumn(
+        "row_num",
+        row_number().over(
+            review_window
+        )
+    )
+
+    .filter(
+        col("row_num") == 1
+    )
+
+    .drop("row_num")
+
+)
+
+print(
+    f"Reviews After Deduplication: "
+    f"{silver_reviews_df.count()}"
+)
+
+
+# =========================================================
+# QUARANTINE RULE 1
+# NULL ORDER ID
+# =========================================================
+
+print("\nIdentifying NULL order_id reviews...")
+
+null_order_reviews_df = (
+
+    silver_reviews_df
+
+    .filter(
+        col("order_id").isNull()
+    )
+
+    .withColumn(
+        "quarantine_reason",
+        lit("NULL_ORDER_ID")
+    )
+
+)
+
+
+# =========================================================
+# QUARANTINE RULE 2
+# ORPHAN REVIEWS
+# =========================================================
+
+print("\nIdentifying orphan reviews...")
+
+orphan_reviews_df = (
+
+    silver_reviews_df
+
+    .join(
+
+        orders_df.select(
+            "order_id"
+        ),
+
+        on="order_id",
+
+        how="left_anti"
+
+    )
+
+    .withColumn(
+        "quarantine_reason",
+        lit("ORPHAN_REVIEW")
+    )
+
+)
+
+
+# =========================================================
+# QUARANTINE RULE 3
+# MISSING REVIEW TIMESTAMPS
+# =========================================================
+
+print(
+    "\nIdentifying reviews with missing timestamps..."
+)
+
+missing_timestamp_df = (
+
+    silver_reviews_df
+
+    .filter(
+
+        col(
+            "review_creation_date"
+        ).isNull()
+
+        &
+
+        col(
+            "review_answer_timestamp"
+        ).isNull()
+
+    )
+
+    .withColumn(
+
+        "quarantine_reason",
+
+        lit(
+            "MISSING_REVIEW_TIMESTAMPS"
+        )
+
+    )
+
+)
+
+
+# =========================================================
+# BUILD QUARANTINE DATASET
+# =========================================================
+
+print("\nBuilding review quarantine dataset...")
+
+reviews_quarantine_df = (
+
+    null_order_reviews_df
+
+    .unionByName(
+        orphan_reviews_df
+    )
+
+    .unionByName(
+        missing_timestamp_df
+    )
+
+    .dropDuplicates(
+        ["review_id"]
+    )
+
+)
+
+print(
+    f"Quarantined Reviews: "
+    f"{reviews_quarantine_df.count()}"
+)
+
+
+# =========================================================
+# BUILD CLEAN DATASET
+# =========================================================
+
+print("\nBuilding clean reviews dataset...")
+
+clean_reviews_df = (
+
+    silver_reviews_df
+
+    .join(
+
+        reviews_quarantine_df.select(
+            "review_id"
+        ),
+
+        on="review_id",
+
+        how="left_anti"
+
+    )
+
+)
+
+print(
+    f"Clean Reviews: "
+    f"{clean_reviews_df.count()}"
+)
+
+
+# =========================================================
+# DELIVERY CONTEXT ENRICHMENT
+# =========================================================
+
+print("\nJoining delivery context...")
+
+clean_reviews_df = clean_reviews_df.join(
+
+    orders_df,
+
+    on="order_id",
+
+    how="left"
+
+)
+
+
+# =========================================================
+# REVIEW LABEL
+# =========================================================
+
+print("\nDeriving review labels...")
+
+clean_reviews_df = clean_reviews_df.withColumn(
+
+    "review_label",
+
+    when(
+        col("review_score") <= 2,
+        "Negative"
+    )
+
+    .when(
+        col("review_score") == 3,
+        "Neutral"
+    )
+
+    .otherwise(
+        "Positive"
+    )
+
+)
+
+
+# =========================================================
+# REVIEW RESPONSE DAYS
+# =========================================================
+
+print("\nCalculating response days...")
+
+clean_reviews_df = clean_reviews_df.withColumn(
+
+    "review_response_days",
+
+    datediff(
+
+        col(
+            "review_answer_timestamp"
+        ),
+
+        col(
+            "review_creation_date"
+        )
+
+    )
+
+)
+
+
+# =========================================================
+# REVIEW CONTEXT
+# =========================================================
+
+print("\nDeriving review context...")
+
+clean_reviews_df = clean_reviews_df.withColumn(
+
+    "review_context",
+
+    when(
+
+        (col("review_label") == "Negative")
+
+        &
+
+        (col("delay_days") > 0),
+
+        "Delivery Related"
+
+    )
+
+    .when(
+
+        (col("review_label") == "Negative")
+
+        &
+
+        (col("delay_days") <= 0),
+
+        "Product Related"
+
+    )
+
+    .otherwise(
+        "General Experience"
+    )
+
+)
+
 
 # =========================================================
 # METADATA ENRICHMENT
 # =========================================================
 
-"""
-Enterprise lineage metadata.
-"""
-
 print("\nApplying metadata enrichment...")
 
-silver_reviews_df = (
+clean_reviews_df = (
 
-    silver_reviews_df
+    clean_reviews_df
 
     .withColumn(
         "silver_loaded_at",
@@ -327,21 +657,12 @@ silver_reviews_df = (
 
 )
 
-print("\n=================================================")
-print("BRONZE AFTER  SCHEMA")
-print("=================================================")
-
-silver_reviews_df.printSchema()
-
-
 
 # =========================================================
-# COLUMN REORDERING
+# FINAL COLUMN ORDER
 # =========================================================
 
-print("\nApplying final schema ordering...")
-
-silver_reviews_df = silver_reviews_df.select(
+clean_reviews_df = clean_reviews_df.select(
 
     "review_id",
 
@@ -357,6 +678,18 @@ silver_reviews_df = silver_reviews_df.select(
 
     "review_answer_timestamp",
 
+    "review_response_days",
+
+    "review_label",
+
+    "review_context",
+
+    "delivery_duration_days",
+
+    "delay_days",
+
+    "delivery_status_category",
+
     "silver_loaded_at",
 
     "source_system",
@@ -370,82 +703,76 @@ silver_reviews_df = silver_reviews_df.select(
 # MATERIALIZE DATAFRAME
 # =========================================================
 
-"""
-Force Spark to materialize the transformed
-dataframe before validations.
+print(
+    "\nMaterializing clean reviews dataset..."
+)
 
-Prevents lazy-evaluation lineage issues.
-"""
+clean_reviews_df = clean_reviews_df.cache()
 
-print("\nMaterializing Silver Reviews DataFrame...")
-
-silver_reviews_df = silver_reviews_df.cache()
-
-silver_reviews_df.count()
+clean_reviews_df.count()
 
 
 # =========================================================
-# RUN VALIDATION SUITE
+# VALIDATIONS
 # =========================================================
 
 run_reviews_validation(
+
     source_df=reviews_df,
-    transformed_df=silver_reviews_df
+
+    transformed_df=clean_reviews_df,
+
+    quarantine_df=reviews_quarantine_df
+
 )
 
 
 # =========================================================
-# FINAL DATA PREVIEW
+# WRITE QUARANTINE
 # =========================================================
-
-print("\n=================================================")
-print("SILVER REVIEWS PREVIEW")
-print("=================================================")
-
-silver_reviews_df.show(
-    10,
-    truncate=False
-)
-
-
-# =========================================================
-# FINAL ROW COUNT
-# =========================================================
-
-print("\n=================================================")
-print("FINAL ROW COUNT")
-print("=================================================")
 
 print(
-    f"Silver Reviews Count: "
-    f"{silver_reviews_df.count()}"
+    "\nWriting reviews quarantine dataset..."
 )
 
-
-# =========================================================
-# WRITE SILVER DATASET
-# =========================================================
-
-print("\n=================================================")
-print("WRITING SILVER REVIEWS DATASET")
-print("=================================================")
-
-silver_reviews_df.write \
+reviews_quarantine_df.write \
     .mode("overwrite") \
-    .parquet(SILVER_REVIEWS_PATH)
+    .parquet(
+        SILVER_REVIEWS_QUARANTINE_PATH
+    )
+
+
+# =========================================================
+# WRITE CLEAN REVIEWS
+# =========================================================
 
 print(
-    f"Silver Reviews Written To: "
-    f"{SILVER_REVIEWS_PATH}"
+    "\nWriting silver reviews dataset..."
 )
 
+clean_reviews_df.write \
+    .mode("overwrite") \
+    .parquet(
+        SILVER_REVIEWS_PATH
+    )
+
 
 # =========================================================
-# STOP SPARK SESSION
+# FINAL SUMMARY
 # =========================================================
+
+print("\n=================================================")
+print("REVIEWS HARDENING COMPLETED")
+print("=================================================")
+
+print(
+    f"Clean Reviews: "
+    f"{clean_reviews_df.count()}"
+)
+
+print(
+    f"Quarantined Reviews: "
+    f"{reviews_quarantine_df.count()}"
+)
 
 spark.stop()
-
-print("\n=================================================")
-print("SILVER REVIEWS TRANSFORMATION COMPLETED")
-print("=================================================")

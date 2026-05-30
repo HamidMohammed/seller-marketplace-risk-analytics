@@ -406,19 +406,6 @@ def run_order_items_validation(
     print("ALL ORDER ITEMS VALIDATIONS COMPLETED")
     print("=================================================")
 
-
-    print(
-        f"Clean Orders: "
-        f"{orders_df.count()}"
-    )
-
-    print(
-        f"Orphan Items: "
-        f"{orphan_order_items_df.count()}"
-    )
-    transformed_df.filter(
-    col("order_purchase_timestamp").isNull()
-        ).count()
     print("""
 Validation Summary:
 - Row count integrity verified

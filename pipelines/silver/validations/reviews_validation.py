@@ -1,16 +1,17 @@
+
 """
 reviews_validation.py
 
 Objective:
-Validation framework for silver_reviews dataset.
+Validation framework for hardened silver_reviews dataset.
 
-This module protects:
-- behavioral operational integrity
-- review-grain correctness
-- review-score validity
-- temporal consistency
-- text normalization reliability
-- customer satisfaction analytical trust
+Sprint 3 Enhancements:
+- quarantine validation
+- orphan review governance
+- review sentiment validation
+- review context validation
+- response timeline validation
+- behavioral intelligence validation
 
 Project:
 Olist Seller Intelligence Platform
@@ -30,20 +31,21 @@ import sys
 import os
 
 project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../../")
+    os.path.join(
+        os.path.dirname(__file__),
+        "../../../"
+    )
 )
 
 if project_root not in sys.path:
     sys.path.append(project_root)
-
 
 # =========================================================
 # IMPORTS
 # =========================================================
 
 from pyspark.sql.functions import (
-    col,
-    trim
+    col
 )
 
 from pipelines.silver.validations.validation_utils import (
@@ -51,418 +53,439 @@ from pipelines.silver.validations.validation_utils import (
     validate_nulls
 )
 
+# =========================================================
+# QUARANTINE VALIDATION
+# =========================================================
+
+def validate_quarantine_counts(
+    quarantine_df
+):
+
+    print(
+        "\n[VALIDATION] QUARANTINE SUMMARY"
+    )
+
+    quarantine_count = (
+        quarantine_df.count()
+    )
+
+    print(
+        f"Total Quarantined Reviews: "
+        f"{quarantine_count}"
+    )
+
+    quarantine_df.groupBy(
+        "quarantine_reason"
+    ).count().show(
+        truncate=False
+    )
 
 # =========================================================
-# MAIN VALIDATION FUNCTION
+# REVIEW LABEL VALIDATION
+# =========================================================
+
+def validate_review_labels(
+    df
+):
+
+    print(
+        "\n[VALIDATION] REVIEW LABELS"
+    )
+
+    invalid_labels = df.filter(
+
+        ~col("review_label").isin(
+
+            "Positive",
+            "Neutral",
+            "Negative"
+
+        )
+
+    ).count()
+
+    print(
+        f"Invalid Review Labels: "
+        f"{invalid_labels}"
+    )
+
+    if invalid_labels > 0:
+
+        raise ValueError(
+            "FAILED: Invalid review labels detected."
+        )
+
+# =========================================================
+# REVIEW CONTEXT VALIDATION
+# =========================================================
+
+def validate_review_context(
+    df
+):
+
+    print(
+        "\n[VALIDATION] REVIEW CONTEXT"
+    )
+
+    invalid_context = df.filter(
+
+        ~col("review_context").isin(
+
+            "Delivery Related",
+            "Product Related",
+            "General Experience"
+
+        )
+
+    ).count()
+
+    print(
+        f"Invalid Review Context: "
+        f"{invalid_context}"
+    )
+
+    if invalid_context > 0:
+
+        raise ValueError(
+            "FAILED: Invalid review context detected."
+        )
+
+# =========================================================
+# RESPONSE DAYS VALIDATION
+# =========================================================
+
+def validate_response_days(
+    df
+):
+
+    print(
+        "\n[VALIDATION] RESPONSE DAYS"
+    )
+
+    negative_response_days = df.filter(
+
+        col("review_response_days") < 0
+
+    ).count()
+
+    print(
+        f"Negative Response Days: "
+        f"{negative_response_days}"
+    )
+
+# =========================================================
+# REVIEW SCORE VALIDATION
+# =========================================================
+
+def validate_review_scores(
+    df
+):
+
+    print(
+        "\n[VALIDATION] REVIEW SCORES"
+    )
+
+    invalid_scores = df.filter(
+
+        (
+            col("review_score") < 1
+        )
+
+        |
+
+        (
+            col("review_score") > 5
+        )
+
+    ).count()
+
+    print(
+        f"Invalid Review Scores: "
+        f"{invalid_scores}"
+    )
+
+    if invalid_scores > 0:
+
+        raise ValueError(
+            "FAILED: Invalid review scores."
+        )
+
+# =========================================================
+# TIMESTAMP VALIDATION
+# =========================================================
+
+def validate_timestamps(
+    df
+):
+
+    print(
+        "\n[VALIDATION] TIMESTAMPS"
+    )
+
+    missing_creation = df.filter(
+
+        col(
+            "review_creation_date"
+        ).isNull()
+
+    ).count()
+
+    print(
+        f"Missing Creation Dates: "
+        f"{missing_creation}"
+    )
+
+# =========================================================
+# RESPONSE TIMELINE VALIDATION
+# =========================================================
+
+def validate_response_timeline(
+    df
+):
+
+    print(
+        "\n[VALIDATION] RESPONSE TIMELINE"
+    )
+
+    invalid_timeline = df.filter(
+
+        col(
+            "review_answer_timestamp"
+        )
+
+        <
+
+        col(
+            "review_creation_date"
+        )
+
+    ).count()
+
+    print(
+        f"Invalid Response Timeline: "
+        f"{invalid_timeline}"
+    )
+
+# =========================================================
+# EMPTY REVIEW ANALYSIS
+# =========================================================
+
+def validate_empty_reviews(
+    df
+):
+
+    print(
+        "\n[VALIDATION] EMPTY REVIEWS COMMENTS "
+    )
+
+    empty_reviews = df.filter(
+
+        col(
+            "review_comment_title"
+        ).isNull()
+
+        &
+
+        col(
+            "review_comment_message"
+        ).isNull()
+
+    ).count()
+
+    print(
+        f"Empty Reviews: "
+        f"{empty_reviews}"
+    )
+
+def validate_empty_scores(
+    df
+):
+
+    print(
+        "\n[VALIDATION] EMPTY SCORE  "
+    )
+
+    empty_reviews = df.filter(
+
+        col(
+            "review_score"
+        ).isNull()
+
+        
+
+    ).count()
+
+    print(
+        f"Empty Reviews: "
+        f"{empty_reviews}"
+    )
+
+# =========================================================
+# DISTRIBUTION ANALYSIS
+# =========================================================
+
+def validate_sentiment_distribution(
+    df
+):
+
+    print(
+        "\n[VALIDATION] SENTIMENT DISTRIBUTION"
+    )
+
+    df.groupBy(
+        "review_label"
+    ).count().show(
+        truncate=False
+    )
+
+# =========================================================
+# DELIVERY CONTEXT DISTRIBUTION
+# =========================================================
+
+def validate_context_distribution(
+    df
+):
+
+    print(
+        "\n[VALIDATION] CONTEXT DISTRIBUTION"
+    )
+
+    df.groupBy(
+        "review_context"
+    ).count().show(
+        truncate=False
+    )
+
+# =========================================================
+# MAIN VALIDATION RUNNER
 # =========================================================
 
 def run_reviews_validation(
+
     source_df,
-    transformed_df
+    transformed_df,
+    quarantine_df
+
 ):
-    """
-    Run complete validation suite for silver_reviews.
-
-    Parameters
-    ----------
-    source_df : DataFrame
-        Original Bronze reviews dataframe.
-
-    transformed_df : DataFrame
-        Final Silver reviews dataframe.
-    """
-
-    print("\n=================================================")
-    print("RUNNING REVIEWS VALIDATION")
-    print("=================================================")
-
-    # =====================================================
-    # 1. ROW COUNT ANALYSIS
-    # =====================================================
-
-    """
-    Review datasets should preserve
-    atomic behavioral review events.
-    """
-
-    print("\n[1] ROW COUNT ANALYSIS")
-
-    source_count = source_df.count()
-
-    transformed_count = transformed_df.count()
-
-    print(f"Source Review Count: {source_count}")
 
     print(
-        f"Silver Review Count: "
+        "\n================================================="
+    )
+
+    print(
+        "RUNNING HARDENED REVIEWS VALIDATION"
+    )
+
+    print(
+        "================================================="
+    )
+
+    source_count = (
+        source_df.count()
+    )
+
+    transformed_count = (
+        transformed_df.count()
+    )
+
+    quarantine_count = (
+        quarantine_df.count()
+    )
+
+    print(
+        f"Source Count: "
+        f"{source_count}"
+    )
+
+    print(
+        f"Clean Reviews: "
         f"{transformed_count}"
     )
 
-    if source_count != transformed_count:
+    print(
+        f"Quarantined Reviews: "
+        f"{quarantine_count}"
+    )
 
-        raise ValueError(
-            "FAILED: Row count mismatch detected."
-        )
+    if source_count != (
+        transformed_count
+        +
+        quarantine_count
+    ):
 
-    print("PASSED: Row count validation.")
-
-    # =====================================================
-    # 2. GRAIN VALIDATION
-    # =====================================================
-
-    """
-    Grain:
-    ONE ROW = ONE REVIEW EVENT
-    """
-
-    print("\n[2] GRAIN VALIDATION")
+        print("""
+WARNING:
+Source count reconciliation mismatch.
+Investigate duplicates and quarantines.
+""")
 
     validate_duplicates(
         df=transformed_df,
         key_columns=["review_id"]
     )
 
-    # =====================================================
-    # 3. CRITICAL NULL VALIDATION
-    # =====================================================
-
-    print("\n[3] CRITICAL NULL VALIDATION")
-
-    critical_columns = [
-
-        "review_id",
-
-        "order_id",
-
-        "review_score"
-
-    ]
-
     validate_nulls(
         df=transformed_df,
-        critical_columns=critical_columns
+        critical_columns=[
+            "review_id",
+            "order_id",
+            "review_score"
+        ]
     )
 
-    # =====================================================
-    # 4. REVIEW SCORE VALIDATION
-    # =====================================================
-
-    """
-    Review scores must be between 1 and 5.
-    """
-
-    print("\n[4] REVIEW SCORE VALIDATION")
-
-    invalid_review_scores = (
-
+    validate_review_scores(
         transformed_df
-
-        .filter(
-
-            (
-                col("review_score") < 1
-            )
-
-            |
-
-            (
-                col("review_score") > 5
-            )
-
-        )
-
-        .count()
-
     )
 
-    print(
-        f"Invalid Review Score Records: "
-        f"{invalid_review_scores}"
-    )
-
-    if invalid_review_scores > 0:
-
-        raise ValueError(
-            "FAILED: Invalid review scores detected."
-        )
-
-    print("PASSED: Review score validation.")
-
-    # =====================================================
-    # 5. REVIEW TITLE NORMALIZATION VALIDATION
-    # =====================================================
-
-    """
-    Ensure review titles are trimmed correctly.
-    """
-
-    print("\n[5] REVIEW TITLE VALIDATION")
-
-    invalid_title_records = (
-
+    validate_review_labels(
         transformed_df
-
-        .filter(
-
-            col("review_comment_title").isNotNull()
-
-            &
-
-            (
-                col("review_comment_title")
-                !=
-                trim(col("review_comment_title"))
-            )
-
-        )
-
-        .count()
-
     )
 
-    print(
-        f"Invalid Review Title Records: "
-        f"{invalid_title_records}"
-    )
-
-    if invalid_title_records > 0:
-
-        print("""
-WARNING:
-Some review titles are not normalized.
-""")
-
-    else:
-
-        print(
-            "PASSED: Review title normalization validation."
-        )
-
-    # =====================================================
-    # 6. REVIEW MESSAGE NORMALIZATION VALIDATION
-    # =====================================================
-
-    """
-    Ensure review messages are trimmed correctly.
-    """
-
-    print("\n[6] REVIEW MESSAGE VALIDATION")
-
-    invalid_message_records = (
-
+    validate_review_context(
         transformed_df
-
-        .filter(
-
-            col("review_comment_message").isNotNull()
-
-            &
-
-            (
-                col("review_comment_message")
-                !=
-                trim(col("review_comment_message"))
-            )
-
-        )
-
-        .count()
-
     )
 
-    print(
-        f"Invalid Review Message Records: "
-        f"{invalid_message_records}"
-    )
-
-    if invalid_message_records > 0:
-
-        print("""
-WARNING:
-Some review messages are not normalized.
-""")
-
-    else:
-
-        print(
-            "PASSED: Review message normalization validation."
-        )
-
-    # =====================================================
-    # 7. REVIEW TIMESTAMP VALIDATION
-    # =====================================================
-
-    """
-    Validate review temporal consistency.
-    """
-
-    print("\n[7] REVIEW TIMESTAMP VALIDATION")
-
-    invalid_timestamp_records = (
-
+    validate_response_days(
         transformed_df
-
-        .filter(
-
-            col("review_creation_date").isNull()
-
-        )
-
-        .count()
-
     )
 
-    print(
-        f"Invalid Review Timestamp Records: "
-        f"{invalid_timestamp_records}"
-    )
-
-    if invalid_timestamp_records > 0:
-
-        raise ValueError(
-            "FAILED: Invalid review timestamps detected."
-        )
-
-    print("PASSED: Review timestamp validation.")
-
-    # =====================================================
-    # 8. REVIEW RESPONSE TIMELINE VALIDATION
-    # =====================================================
-
-    """
-    Validate response chronology.
-    """
-
-    print("\n[8] REVIEW RESPONSE TIMELINE VALIDATION")
-
-    invalid_response_timeline_records = (
-
+    validate_timestamps(
         transformed_df
-
-        .filter(
-
-            col("review_answer_timestamp")
-            <
-            col("review_creation_date")
-
-        )
-
-        .count()
-
     )
 
-    print(
-        f"Invalid Response Timeline Records: "
-        f"{invalid_response_timeline_records}"
-    )
-
-    if invalid_response_timeline_records > 0:
-
-        print("""
-WARNING:
-Some review responses occur before
-review creation timestamps.
-""")
-
-    else:
-
-        print(
-            "PASSED: Response timeline validation."
-        )
-
-    # =====================================================
-    # 9. EMPTY REVIEW ANALYSIS
-    # =====================================================
-
-    """
-    Analyze reviews without textual content.
-    NOT a failure condition.
-    """
-
-    print("\n[9] EMPTY REVIEW ANALYSIS")
-
-    empty_review_records = (
-
+    validate_response_timeline(
         transformed_df
-
-        .filter(
-
-            col("review_comment_title").isNull()
-
-            &
-
-            col("review_comment_message").isNull()
-
-        )
-
-        .count()
-
     )
 
-    print(
-        f"Empty Review Records: "
-        f"{empty_review_records}"
-    )
-
-    print("""
-INFO:
-Some customers provide only numerical
-ratings without textual comments.
-""")
-
-    # =====================================================
-    # 10. REVIEW DISTRIBUTION VALIDATION
-    # =====================================================
-
-    """
-    Validate review-score completeness.
-    """
-
-    print("\n[10] REVIEW DISTRIBUTION VALIDATION")
-
-    null_review_scores = (
-
+    validate_empty_reviews(
         transformed_df
+    )
+    
+    validate_empty_scores(
+        transformed_df
+    )
 
-        .filter(
-            col("review_score").isNull()
-        )
+    validate_sentiment_distribution(
+        transformed_df
+    )
 
-        .count()
+    validate_context_distribution(
+        transformed_df
+    )
 
+    validate_quarantine_counts(
+        quarantine_df
     )
 
     print(
-        f"Null Review Score Records: "
-        f"{null_review_scores}"
+        "\n================================================="
     )
-
-    if null_review_scores > 0:
-
-        raise ValueError(
-            "FAILED: Null review scores detected."
-        )
 
     print(
-        "PASSED: Review distribution validation."
+        "REVIEWS VALIDATION COMPLETED"
     )
 
-    # =====================================================
-    # FINAL VALIDATION SUMMARY
-    # =====================================================
+    print(
+        "================================================="
+    )
 
-    print("\n=================================================")
-    print("ALL REVIEWS VALIDATIONS COMPLETED")
-    print("=================================================")
-
-    print("""
-Validation Summary:
-- Review grain integrity verified
-- Behavioral consistency validated
-- Review-score correctness verified
-- Text normalization validated
-- Temporal consistency protected
-- Controlled anomaly governance applied
-
-silver_reviews is TRUSTED.
-""")

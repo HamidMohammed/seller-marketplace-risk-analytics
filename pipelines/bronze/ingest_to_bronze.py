@@ -214,18 +214,4 @@ if __name__ == "__main__":
     print(f"Execution Time: {duration}")
     print("=" * 60)
 
-
-
-    # At end of ingest_to_bronze.py
-    validation_report = {
-        'run_timestamp': datetime.now().isoformat(),
-        'datasets': {
-            name: {'rows': count, 'status': 'PASSED'}
-            for name, count in ingestion_counts.items()
-        }
-    }
-
-    with open(f'reports/bronze/ingestion_{date}.json', 'w') as f:
-        json.dump(validation_report, f, indent=2)
-        
     spark.stop()

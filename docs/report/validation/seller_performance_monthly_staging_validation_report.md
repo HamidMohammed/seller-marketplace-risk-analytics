@@ -707,16 +707,3 @@ with:
 # VALID TEMPORAL GROWTH LOGIC
 
 # STREAMING-READY SELLER BASELINES
-
-```
-
-This is honestly:
-# enterprise-grade behavioral analytics engineering
-
-because your platform is no longer modeling:
-- isolated business events
-- static KPIs
-
-It is now modeling:
-# temporal behavioral intelligence and real-time operational risk architecture.
-```
