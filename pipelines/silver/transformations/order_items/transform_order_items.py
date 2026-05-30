@@ -115,6 +115,9 @@ SILVER_ORDER_ITEMS_PATH = (
     config["paths"]["silver"]["order_items"]
 )
 
+SILVER_ORDER_ITEMS_QUARANTINE_PATH = (
+    config["paths"]["silver"]["order_items_quarantine"]
+)
 # ---------------------------------------------------------
 # Metadata Configuration
 # ---------------------------------------------------------
@@ -147,6 +150,10 @@ products_df = spark.read.parquet(
 orders_df = spark.read.parquet(
     SILVER_ORDERS_PATH
 )
+
+clean_orders_df = orders_df.select(
+    "order_id"
+).distinct()
 
 print(f"Order Items Count: {order_items_df.count()}")
 print(f"Products Count: {products_df.count()}")
@@ -206,8 +213,43 @@ print("=================================================")
 # Base Dataset
 # ---------------------------------------------------------
 
-silver_order_items_df = order_items_df
+# silver_order_items_df = order_items_df
 
+silver_order_items_df = (
+
+    order_items_df
+
+    .join(
+        clean_orders_df,
+        on="order_id",
+        how="inner"
+    )
+)
+
+# =========================================================
+# CASCADE QUARANTINE
+# =========================================================
+
+orphan_order_items_df = (
+
+    order_items_df
+
+    .join(
+        clean_orders_df,
+        on="order_id",
+        how="left_anti"
+    )
+
+    .withColumn(
+        "quarantine_reason",
+        lit("ORPHAN_ORDER_ITEM")
+    )
+)
+
+print(
+    f"Orphan Order Items: "
+    f"{orphan_order_items_df.count()}"
+)
 
 # =========================================================
 # PRODUCT ENRICHMENT
@@ -494,7 +536,8 @@ silver_order_items_df = (
 
 run_order_items_validation(
     source_df=order_items_df,
-    transformed_df=silver_order_items_df
+    transformed_df=silver_order_items_df,
+    quarantine_df=orphan_order_items_df
 )
 
 
@@ -527,6 +570,15 @@ silver_order_items_df.select(
 print("\n=================================================")
 print("WRITING SILVER ORDER ITEMS")
 print("=================================================")
+orphan_order_items_df.write \
+    .mode("overwrite") \
+    .parquet(
+        SILVER_ORDER_ITEMS_QUARANTINE_PATH
+    )
+print(
+    f"QUARANTINE Order Items Written To: "
+    f"{SILVER_ORDER_ITEMS_QUARANTINE_PATH}"
+)
 
 silver_order_items_df.write \
     .mode("overwrite") \

@@ -60,7 +60,8 @@ from pipelines.silver.validations.validation_utils import (
 
 def run_order_items_validation(
     source_df,
-    transformed_df
+    transformed_df,
+    quarantine_df
 ):
     """
     Runs complete validation suite for silver_order_items.
@@ -214,7 +215,7 @@ def run_order_items_validation(
         )
 
     print("PASSED: Product volume validation.")
-
+    
     # =====================================================
     # 7. SELLER ACCOUNTABILITY VALIDATION
     # =====================================================
@@ -374,7 +375,29 @@ def run_order_items_validation(
 
     print(f"Negative Preparation Days (anomalies): {negative_prep_days}")
     # Preserve but document — seller may have received order after limit
-    
+    def validate_quarantine_counts(
+    quarantine_df
+    ):
+
+        print("\n[VALIDATION] Cascade Quarantine")
+
+        quarantine_count = (
+            quarantine_df.count()
+        )
+
+        print(
+            f"Quarantined Order Items: "
+            f"{quarantine_count}"
+        )
+
+        quarantine_df.groupBy(
+            "quarantine_reason"
+        ).count().show(
+            truncate=False
+        )
+    validate_quarantine_counts(
+    quarantine_df
+    )
     # =====================================================
     # FINAL VALIDATION SUMMARY
     # =====================================================
@@ -383,6 +406,19 @@ def run_order_items_validation(
     print("ALL ORDER ITEMS VALIDATIONS COMPLETED")
     print("=================================================")
 
+
+    print(
+        f"Clean Orders: "
+        f"{orders_df.count()}"
+    )
+
+    print(
+        f"Orphan Items: "
+        f"{orphan_order_items_df.count()}"
+    )
+    transformed_df.filter(
+    col("order_purchase_timestamp").isNull()
+        ).count()
     print("""
 Validation Summary:
 - Row count integrity verified
