@@ -275,7 +275,11 @@ null_order_payments_df = (
     )
 
 )
+print(
+    f"NULL order_id payments: "
+    f"{null_order_payments_df.count()}"
 
+)
 
 # =========================================================
 # QUARANTINE RULE 2
@@ -305,6 +309,11 @@ orphan_payments_df = (
 
 )
 
+print(
+    f"orphan payments (no matching orders): "
+    f"{orphan_payments_df.count()}"
+)
+
 
 # =========================================================
 # QUARANTINE RULE 3
@@ -327,7 +336,10 @@ negative_payment_df = (
     )
 
 )
-
+print(
+    f"negative payments: "
+    f"{negative_payment_df.count()}"
+)
 
 # =========================================================
 # QUARANTINE RULE 4
@@ -349,6 +361,11 @@ negative_installments_df = (
         lit("NEGATIVE_INSTALLMENTS")
     )
 
+)
+
+print(
+    f"negative Installments: "
+    f"{negative_installments_df.count()}"
 )
 
 

@@ -283,7 +283,7 @@ def run_payments_validation(
     )
 
     print(
-        "RUNNING HARDENED PAYMENTS VALIDATION"
+        "RUNNING CLENSING PAYMENTS VALIDATION"
     )
 
     print(
