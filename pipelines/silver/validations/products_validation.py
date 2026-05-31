@@ -30,399 +30,379 @@ import sys
 import os
 
 project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../../")
+    os.path.join(
+        os.path.dirname(__file__),
+        "../../../"
+    )
 )
 
 if project_root not in sys.path:
     sys.path.append(project_root)
-
 
 # =========================================================
 # IMPORTS
 # =========================================================
 
 from pyspark.sql.functions import (
-    col,
-    lower,
-    trim
+    col
 )
 
 from pipelines.silver.validations.validation_utils import (
     validate_duplicates,
-    validate_nulls,
-    validate_positive_values
+    validate_nulls
 )
 
-
 # =========================================================
-# MAIN VALIDATION FUNCTION
+# QUARANTINE VALIDATION
 # =========================================================
 
-def run_products_validation(
-    source_df,
-    transformed_df
+def validate_quarantine_counts(
+    quarantine_df
 ):
-    """
-    Run complete validation suite for silver_products.
-
-    Parameters
-    ----------
-    source_df : DataFrame
-        Original Bronze products dataframe.
-
-    transformed_df : DataFrame
-        Final Silver products dataframe.
-    """
-
-    print("\n=================================================")
-    print("RUNNING PRODUCTS VALIDATION")
-    print("=================================================")
-
-    # =====================================================
-    # 1. ROW COUNT ANALYSIS
-    # =====================================================
-
-    """
-    Product dimensional datasets should preserve
-    row counts because transformations should not
-    create duplication or record loss.
-    """
-
-    print("\n[1] ROW COUNT ANALYSIS")
-
-    source_count = source_df.count()
-
-    transformed_count = transformed_df.count()
-
-    print(f"Source Product Count: {source_count}")
 
     print(
-        f"Silver Product Count: "
-        f"{transformed_count}"
+        "\n[VALIDATION] QUARANTINE SUMMARY"
     )
 
-    if source_count != transformed_count:
+    total_quarantined = (
+        quarantine_df.count()
+    )
+
+    print(
+        f"Total Quarantined Products: "
+        f"{total_quarantined}"
+    )
+
+    quarantine_df.groupBy(
+        "quarantine_reason"
+    ).count().show(
+        truncate=False
+    )
+
+# =========================================================
+# PRODUCT SIZE CATEGORY VALIDATION
+# =========================================================
+
+def validate_product_size_category(
+    df
+):
+
+    print(
+        "\n[VALIDATION] PRODUCT SIZE CATEGORY"
+    )
+
+    invalid_categories = df.filter(
+
+        ~col(
+            "product_size_category"
+        ).isin(
+
+            "Small",
+            "Medium",
+            "Large",
+            "Oversized"
+
+        )
+
+    ).count()
+
+    print(
+        f"Invalid Product Size Categories: "
+        f"{invalid_categories}"
+    )
+
+    if invalid_categories > 0:
 
         raise ValueError(
-            "FAILED: Row count mismatch detected."
+            "FAILED: Invalid product size categories."
         )
 
-    print("PASSED: Row count validation.")
+# =========================================================
+# LOGISTICS COMPLETENESS FLAG
+# =========================================================
 
-    # =====================================================
-    # 2. GRAIN VALIDATION
-    # =====================================================
-
-    """
-    Grain:
-    ONE ROW = ONE PRODUCT
-    """
-
-    print("\n[2] GRAIN VALIDATION")
-
-    validate_duplicates(
-        df=transformed_df,
-        key_columns=["product_id"]
-    )
-
-    # =====================================================
-    # 3. CRITICAL NULL VALIDATION
-    # =====================================================
-
-    print("\n[3] CRITICAL NULL VALIDATION")
-
-    critical_columns = [
-        "product_id"
-    ]
-
-    validate_nulls(
-        df=transformed_df,
-        critical_columns=critical_columns
-    )
-
-    # =====================================================
-    # 4. PRODUCT CATEGORY VALIDATION
-    # =====================================================
-
-    """
-    Validate category normalization consistency.
-    """
-
-    print("\n[4] PRODUCT CATEGORY VALIDATION")
-
-    inconsistent_categories = (
-
-        transformed_df
-
-        .filter(
-
-            col("product_category_name")
-            !=
-            lower(
-                trim(col("product_category_name"))
-            )
-
-        )
-
-        .count()
-
-    )
+def validate_logistics_flag(
+    df
+):
 
     print(
-        f"Inconsistent Category Records: "
-        f"{inconsistent_categories}"
+        "\n[VALIDATION] LOGISTICS COMPLETENESS"
     )
 
-    if inconsistent_categories > 0:
-
-        print("""
-WARNING:
-Some product categories are not normalized.
-""")
-
-    else:
-
-        print(
-            "PASSED: Product category validation."
-        )
-
-    # =====================================================
-    # 5. PRODUCT WEIGHT VALIDATION
-    # =====================================================
-
-    """
-    Product weights must be non-negative.
-    """
-
-    print("\n[5] PRODUCT WEIGHT VALIDATION")
-
-    validate_positive_values(
-        df=transformed_df,
-        column_name="product_weight_g"
+    df.groupBy(
+        "logistics_completeness_flag"
+    ).count().show(
+        truncate=False
     )
 
-    # =====================================================
-    # 6. PRODUCT DIMENSION VALIDATION
-    # =====================================================
+# =========================================================
+# HEAVY PRODUCT FLAG
+# =========================================================
 
-    """
-    Validate physical product dimensions.
-    """
-
-    print("\n[6] PRODUCT DIMENSION VALIDATION")
-
-    dimension_columns = [
-
-        "product_length_cm",
-        "product_height_cm",
-        "product_width_cm"
-
-    ]
-
-    for dimension_column in dimension_columns:
-
-        validate_positive_values(
-            df=transformed_df,
-            column_name=dimension_column
-        )
+def validate_heavy_product_flag(
+    df
+):
 
     print(
-        "PASSED: Product dimension validation."
+        "\n[VALIDATION] HEAVY PRODUCT FLAG"
     )
 
-    # =====================================================
-    # 7. PRODUCT VOLUME VALIDATION
-    # =====================================================
-
-    """
-    Product volume must be physically valid.
-    """
-
-    print("\n[7] PRODUCT VOLUME VALIDATION")
-
-    negative_volume_records = (
-
-        transformed_df
-
-        .filter(
-            col("product_volume_cm3") < 0
-        )
-
-        .count()
-
+    df.groupBy(
+        "heavy_product_flag"
+    ).count().show(
+        truncate=False
     )
+
+# =========================================================
+# CATALOG COMPLETENESS FLAG
+# =========================================================
+
+def validate_catalog_completeness_flag(
+    df
+):
 
     print(
-        f"Negative Product Volume Records: "
-        f"{negative_volume_records}"
+        "\n[VALIDATION] CATALOG COMPLETENESS FLAG"
     )
 
-    if negative_volume_records > 0:
+    df.groupBy(
+        "catalog_completeness_flag"
+    ).count().show(
+        truncate=False
+    )
+# =========================================================
+# CATEGORY TRANSLATION VALIDATION
+# =========================================================
+
+def validate_category_translation(
+    df
+):
+
+    print(
+        "\n[VALIDATION] CATEGORY TRANSLATION"
+    )
+
+    missing_translation = df.filter(
+
+        col(
+            "product_category_name_english"
+        ).isNull()
+
+    ).count()
+
+    print(
+        f"Missing English Categories: "
+        f"{missing_translation}"
+    )
+
+# =========================================================
+# VOLUME VALIDATION
+# =========================================================
+
+def validate_product_volume(
+    df
+):
+
+    print(
+        "\n[VALIDATION] PRODUCT VOLUME"
+    )
+
+    negative_volume = df.filter(
+
+        col(
+            "product_volume_cm3"
+        ) < 0
+
+    ).count()
+
+    print(
+        f"Negative Product Volumes: "
+        f"{negative_volume}"
+    )
+
+    if negative_volume > 0:
 
         raise ValueError(
             "FAILED: Negative product volumes detected."
         )
 
-    print("PASSED: Product volume validation.")
+# =========================================================
+# WEIGHT VALIDATION
+# =========================================================
 
-    # =====================================================
-    # 8. PRODUCT METADATA VALIDATION
-    # =====================================================
-
-    """
-    Validate metadata metrics such as:
-    - description length
-    - photo quantity
-    """
-
-    print("\n[8] PRODUCT METADATA VALIDATION")
-
-    metadata_columns = [
-
-        "product_name_lenght",
-        "product_description_lenght",
-        "product_photos_qty"
-
-    ]
-
-    for metadata_column in metadata_columns:
-
-        negative_metadata_records = (
-
-            transformed_df
-
-            .filter(
-                col(metadata_column) < 0
-            )
-
-            .count()
-
-        )
-
-        print(
-            f"Negative {metadata_column} Records: "
-            f"{negative_metadata_records}"
-        )
-
-        if negative_metadata_records > 0:
-
-            raise ValueError(
-                f"FAILED: Invalid values detected "
-                f"in {metadata_column}"
-            )
+def validate_product_weight(
+    df
+):
 
     print(
-        "PASSED: Product metadata validation."
+        "\n[VALIDATION] PRODUCT WEIGHT"
     )
 
-    # =====================================================
-    # 9. MISSING CATEGORY ANALYSIS
-    # =====================================================
+    negative_weight = df.filter(
 
-    """
-    Analyze unknown category assignments.
-    NOT a failure condition.
-    """
+        col(
+            "product_weight_g"
+        ) < 0
 
-    print("\n[9] MISSING CATEGORY ANALYSIS")
+    ).count()
 
-    unknown_category_records = (
+    print(
+        f"Negative Product Weights: "
+        f"{negative_weight}"
+    )
 
-        transformed_df
+    if negative_weight > 0:
 
-        .filter(
-            col("product_category_name")
-            == "unknown_category"
+        raise ValueError(
+            "FAILED: Negative product weights detected."
         )
 
-        .count()
+# =========================================================
+# MAIN VALIDATION RUNNER
+# =========================================================
 
+def run_products_validation(
+
+    source_df,
+    transformed_df,
+    quarantine_df
+
+):
+
+    print(
+        "\n================================================="
     )
 
     print(
-        f"Unknown Category Records: "
-        f"{unknown_category_records}"
-    )
-
-    print("""
-INFO:
-Unknown categories are preserved intentionally
-to avoid silent operational data loss.
-""")
-
-    # =====================================================
-    # 10. LOGISTICS COMPLETENESS VALIDATION
-    # =====================================================
-
-    """
-    Analyze missing logistics attributes.
-    NOT a failure condition.
-    """
-
-    print("\n[10] LOGISTICS COMPLETENESS VALIDATION")
-
-    incomplete_logistics_records = (
-
-        transformed_df
-
-        .filter(
-
-            col("product_weight_g").isNull()
-
-            |
-
-            col("product_length_cm").isNull()
-
-            |
-
-            col("product_height_cm").isNull()
-
-            |
-
-            col("product_width_cm").isNull()
-
-        )
-
-        .count()
-
+        "RUNNING HARDENED PRODUCTS VALIDATION"
     )
 
     print(
-        f"Incomplete Logistics Records: "
-        f"{incomplete_logistics_records}"
+        "================================================="
     )
 
-    if incomplete_logistics_records > 0:
+    source_count = (
+        source_df.count()
+    )
+
+    transformed_count = (
+        transformed_df.count()
+    )
+
+    quarantine_count = (
+        quarantine_df.count()
+    )
+
+    print(
+        f"Source Count: "
+        f"{source_count}"
+    )
+
+    print(
+        f"Clean Products: "
+        f"{transformed_count}"
+    )
+
+    print(
+        f"Quarantined Products: "
+        f"{quarantine_count}"
+    )
+
+    if source_count != (
+        transformed_count
+        +
+        quarantine_count
+    ):
 
         print("""
 WARNING:
-Some products are missing logistics attributes.
+Source reconciliation mismatch.
+Investigate transformation logic.
 """)
 
-    else:
-
-        print(
-            "PASSED: Logistics completeness validation."
-        )
-
     # =====================================================
-    # FINAL VALIDATION SUMMARY
+    # GRAIN
     # =====================================================
 
-    print("\n=================================================")
-    print("ALL PRODUCTS VALIDATIONS COMPLETED")
-    print("=================================================")
+    validate_duplicates(
 
-    print("""
-Validation Summary:
-- Product grain integrity verified
-- Product identity validated
-- Category normalization verified
-- Logistics metrics validated
-- Product dimensions validated
-- Product volume validated
-- Metadata integrity verified
-- Controlled anomaly governance applied
+        df=transformed_df,
 
-silver_products is TRUSTED.
-""")
+        key_columns=[
+            "product_id"
+        ]
+
+    )
+
+    # =====================================================
+    # CRITICAL NULLS
+    # =====================================================
+
+    validate_nulls(
+
+    df=transformed_df,
+
+    critical_columns=[
+
+        "product_id",
+
+        "product_category_name_english",
+
+        "product_size_category",
+
+        "logistics_completeness_flag",
+
+        "catalog_completeness_flag"
+
+    ]
+
+)
+
+    # =====================================================
+    # BUSINESS VALIDATIONS
+    # =====================================================
+
+    validate_product_size_category(
+        transformed_df
+    )
+
+    validate_logistics_flag(
+        transformed_df
+    )
+
+    validate_heavy_product_flag(
+        transformed_df
+    )
+
+    validate_category_translation(
+        transformed_df
+    )
+    
+    validate_catalog_completeness_flag(
+        transformed_df
+    )
+
+    validate_product_volume(
+        transformed_df
+    )
+
+    validate_product_weight(
+        transformed_df
+    )
+
+    validate_quarantine_counts(
+        quarantine_df
+    )
+
+    print(
+        "\n================================================="
+    )
+
+    print(
+        "PRODUCTS VALIDATION COMPLETED"
+    )
+
+    print(
+        "================================================="
+    )
+

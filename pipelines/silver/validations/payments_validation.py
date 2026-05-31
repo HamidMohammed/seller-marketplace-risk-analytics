@@ -265,6 +265,34 @@ def validate_zero_payments(
         f"{zero_payments}"
     )
 
+# =========================================================
+# ZERO INSTALLMENT ANALYSIS
+# =========================================================
+
+def validate_zero_installments(
+    df
+):
+
+    print(
+        "\n[VALIDATION] ZERO INSTALLMENTS"
+    )
+
+    zero_installments = (
+
+        df
+
+        .filter(
+            col("payment_installments") == 0
+        )
+
+        .count()
+
+    )
+
+    print(
+        f"Zero Installment Records: "
+        f"{zero_installments}"
+    )
 
 # =========================================================
 # MAIN VALIDATION RUNNER
@@ -403,6 +431,10 @@ Investigate duplicates and quarantine logic.
     )
 
     validate_zero_payments(
+        transformed_df
+    )
+    
+    validate_zero_installments(
         transformed_df
     )
 

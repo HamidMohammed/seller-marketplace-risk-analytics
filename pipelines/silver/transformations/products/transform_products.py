@@ -98,12 +98,20 @@ BRONZE_PRODUCTS_PATH = (
     config["paths"]["bronze"]["products"]
 )
 
+BRONZE_CATEGORY_TRANSLATION_PATH = (
+    config["paths"]["bronze"]["category_translation"]
+)
+
 # ---------------------------------------------------------
 # Silver Paths
 # ---------------------------------------------------------
 
 SILVER_PRODUCTS_PATH = (
     config["paths"]["silver"]["products"]
+)
+
+SILVER_PRODUCTS_QUARANTINE_PATH = (
+    config["paths"]["silver"]["products_quarantine"]
 )
 
 # ---------------------------------------------------------
@@ -131,11 +139,21 @@ products_df = spark.read.parquet(
     BRONZE_PRODUCTS_PATH
 )
 
+
 print(
     f"Bronze Products Count: "
     f"{products_df.count()}"
 )
-
+print("\n=================================================")
+print("LOADING BRONZE CATEGORY TRANSLATION DATASET")
+print("=================================================")
+category_translation_df = spark.read.parquet(
+    BRONZE_CATEGORY_TRANSLATION_PATH
+)
+category_translation_df = category_translation_df.select(
+    "product_category_name",
+    "product_category_name_english"
+)
 
 # =========================================================
 # INITIAL DATA INSPECTION
@@ -327,18 +345,239 @@ silver_products_df = (
 
 
 # =========================================================
+# CATEGORY TRANSLATION ENRICHMENT
+# =========================================================
+
+print("\nApplying category translation...")
+
+silver_products_df = silver_products_df.join(
+
+    category_translation_df,
+
+    on="product_category_name",
+
+    how="left"
+
+)
+
+silver_products_df = silver_products_df.withColumn(
+
+    "product_category_name_english",
+
+    when(
+
+        col(
+            "product_category_name_english"
+        ).isNull(),
+
+        "unknown_category"
+
+    ).otherwise(
+
+        col(
+            "product_category_name_english"
+        )
+
+    )
+
+)
+
+
+# =========================================================
+# QUARANTINE RULE
+# MISSING LOGISTICS ATTRIBUTES
+# =========================================================
+
+print(
+    "\nIdentifying products with missing logistics..."
+)
+
+products_quarantine_df = (
+
+    silver_products_df
+
+    .filter(
+
+        col("product_weight_g").isNull()
+
+        |
+
+        col("product_length_cm").isNull()
+
+        |
+
+        col("product_height_cm").isNull()
+
+        |
+
+        col("product_width_cm").isNull()
+
+    )
+
+    .withColumn(
+
+        "quarantine_reason",
+
+        lit(
+            "MISSING_LOGISTICS_ATTRIBUTES"
+        )
+
+    )
+
+)
+
+print(
+    f"Quarantined Products: "
+    f"{products_quarantine_df.count()}"
+)
+
+
+# =========================================================
+# BUILD CLEAN DATASET
+# =========================================================
+
+print(
+    "\nBuilding clean products dataset..."
+)
+
+clean_products_df = (
+
+    silver_products_df
+
+    .join(
+
+        products_quarantine_df.select(
+            "product_id"
+        ),
+
+        on="product_id",
+
+        how="left_anti"
+
+    )
+
+)
+
+print(
+    f"Clean Products: "
+    f"{clean_products_df.count()}"
+)
+
+
+# =========================================================
+# LOGISTICS COMPLETENESS FLAG
+# =========================================================
+
+clean_products_df = clean_products_df.withColumn(
+
+    "logistics_completeness_flag",
+
+    when(
+
+        col("product_weight_g").isNotNull()
+
+        &
+
+        col("product_length_cm").isNotNull()
+
+        &
+
+        col("product_height_cm").isNotNull()
+
+        &
+
+        col("product_width_cm").isNotNull(),
+
+        True
+
+    ).otherwise(False)
+
+)
+
+
+# =========================================================
+# HEAVY PRODUCT FLAG
+# =========================================================
+
+clean_products_df = clean_products_df.withColumn(
+
+    "heavy_product_flag",
+
+    when(
+        col("product_weight_g") >= 5000,
+        True
+    ).otherwise(False)
+
+)
+
+
+# =========================================================
+# PRODUCT SIZE CATEGORY
+# =========================================================
+
+clean_products_df = clean_products_df.withColumn(
+
+    "product_size_category",
+
+    when(
+        col("product_volume_cm3") < 1000,
+        "Small"
+    )
+
+    .when(
+        col("product_volume_cm3") < 10000,
+        "Medium"
+    )
+
+    .when(
+        col("product_volume_cm3") < 50000,
+        "Large"
+    )
+
+    .otherwise(
+        "Oversized"
+    )
+
+)
+
+catalog_complete_condition = (
+
+    (col("product_category_name") != "unknown_category")
+
+    &
+
+    (col("product_name_lenght").isNotNull())
+
+    &
+
+    (col("product_description_lenght").isNotNull())
+
+    &
+
+    (col("product_photos_qty").isNotNull())
+
+)
+
+clean_products_df = clean_products_df.withColumn(
+
+    "catalog_completeness_flag",
+
+    when(
+        catalog_complete_condition,
+        True
+    ).otherwise(False)
+
+)
+
+# =========================================================
 # METADATA ENRICHMENT
 # =========================================================
 
-"""
-Enterprise lineage metadata.
-"""
-
 print("\nApplying metadata enrichment...")
 
-silver_products_df = (
+clean_products_df = (
 
-    silver_products_df
+    clean_products_df
 
     .withColumn(
         "silver_loaded_at",
@@ -354,39 +593,67 @@ silver_products_df = (
         "transformation_version",
         lit(TRANSFORMATION_VERSION)
     )
-
 )
 
 
 # =========================================================
-# COLUMN REORDERING
+# FINAL COLUMN ORDER
 # =========================================================
 
 print("\nApplying final schema ordering...")
 
-silver_products_df = silver_products_df.select(
+clean_products_df = clean_products_df.select(
 
     "product_id",
 
     "product_category_name",
 
+    "product_category_name_english",
+
     "product_name_lenght",
+
     "product_description_lenght",
+
     "product_photos_qty",
 
     "product_weight_g",
 
     "product_length_cm",
+
     "product_height_cm",
+
     "product_width_cm",
 
     "product_volume_cm3",
 
+    "product_size_category",
+
+    "heavy_product_flag",
+
+    "logistics_completeness_flag",
+    
+    "catalog_completeness_flag",
+
     "silver_loaded_at",
+
     "source_system",
+
     "transformation_version"
 
 )
+
+
+# =========================================================
+# MATERIALIZE DATAFRAME
+# =========================================================
+
+print(
+    "\nMaterializing clean products dataset..."
+)
+
+clean_products_df = clean_products_df.cache()
+
+clean_products_df.count()
 
 
 # =========================================================
@@ -394,50 +661,96 @@ silver_products_df = silver_products_df.select(
 # =========================================================
 
 run_products_validation(
+
     source_df=products_df,
-    transformed_df=silver_products_df
+
+    transformed_df=clean_products_df,
+
+    quarantine_df=products_quarantine_df
+
 )
 
 
 # =========================================================
-# FINAL DATA PREVIEW
+# QUARANTINE PREVIEW
 # =========================================================
 
 print("\n=================================================")
-print("SILVER PRODUCTS PREVIEW")
+print("PRODUCTS QUARANTINE PREVIEW")
 print("=================================================")
 
-silver_products_df.show(
+products_quarantine_df.show(
     10,
     truncate=False
 )
 
 
 # =========================================================
-# FINAL ROW COUNT
+# CLEAN DATA PREVIEW
 # =========================================================
 
 print("\n=================================================")
-print("FINAL ROW COUNT")
+print("CLEAN PRODUCTS PREVIEW")
 print("=================================================")
 
-print(
-    f"Silver Products Count: "
-    f"{silver_products_df.count()}"
+clean_products_df.show(
+    10,
+    truncate=False
 )
 
 
 # =========================================================
-# WRITE SILVER DATASET
+# FINAL COUNTS
+# =========================================================
+
+print("\n=================================================")
+print("FINAL ROW COUNTS")
+print("=================================================")
+
+print(
+    f"Clean Products Count: "
+    f"{clean_products_df.count()}"
+)
+
+print(
+    f"Quarantined Products Count: "
+    f"{products_quarantine_df.count()}"
+)
+
+
+# =========================================================
+# WRITE QUARANTINE DATASET
+# =========================================================
+
+print("\n=================================================")
+print("WRITING PRODUCTS QUARANTINE DATASET")
+print("=================================================")
+
+products_quarantine_df.write \
+    .mode("overwrite") \
+    .parquet(
+        SILVER_PRODUCTS_QUARANTINE_PATH
+    )
+
+print(
+    f"Products Quarantine Written To: "
+    f"{SILVER_PRODUCTS_QUARANTINE_PATH}"
+)
+
+
+# =========================================================
+# WRITE CLEAN PRODUCTS DATASET
 # =========================================================
 
 print("\n=================================================")
 print("WRITING SILVER PRODUCTS DATASET")
 print("=================================================")
 
-silver_products_df.write \
+clean_products_df.write \
     .mode("overwrite") \
-    .parquet(SILVER_PRODUCTS_PATH)
+    .parquet(
+        SILVER_PRODUCTS_PATH
+    )
 
 print(
     f"Silver Products Written To: "
@@ -446,11 +759,27 @@ print(
 
 
 # =========================================================
+# FINAL SUMMARY
+# =========================================================
+
+print("\n=================================================")
+print("PRODUCT ENRICHMENT & LOGISTICS GOVERNANCE COMPLETED")
+print("=================================================")
+
+print(
+    f"Clean Products: "
+    f"{clean_products_df.count()}"
+)
+
+print(
+    f"Quarantined Products: "
+    f"{products_quarantine_df.count()}"
+)
+
+
+
+# =========================================================
 # STOP SPARK SESSION
 # =========================================================
 
 spark.stop()
-
-print("\n=================================================")
-print("SILVER PRODUCTS TRANSFORMATION COMPLETED")
-print("=================================================")

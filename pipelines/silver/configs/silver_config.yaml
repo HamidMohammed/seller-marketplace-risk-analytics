@@ -52,8 +52,15 @@ paths:
 
     products_quarantine:
       data/silver/quarantine/products/
-    # gold:
-    #   dim_date: data/gold/dim_date/
+
+  gold:
+    dim_date: 
+      data/gold/dim_date/
+
+    dim_customer: data/gold/dim_customer/
+    dim_seller: data/gold/dim_seller/
+    dim_product: data/gold/dim_product/
+    
 
 metadata:
   source_system: olist

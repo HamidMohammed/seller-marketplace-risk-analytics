@@ -278,7 +278,6 @@ null_order_payments_df = (
 print(
     f"NULL order_id payments: "
     f"{null_order_payments_df.count()}"
-
 )
 
 # =========================================================
@@ -366,6 +365,33 @@ negative_installments_df = (
 print(
     f"negative Installments: "
     f"{negative_installments_df.count()}"
+)
+
+# =========================================================
+# QUARANTINE RULE 5
+# ZERO INSTALLMENTS
+# =========================================================
+
+print("\nIdentifying zero installments...")
+
+zero_installments_df = (
+
+    silver_payments_df
+
+    .filter(
+        col("payment_installments") == 0
+    )
+
+    .withColumn(
+        "quarantine_reason",
+        lit("ZERO_INSTALLMENTS")
+    )
+
+)
+
+print(
+    f"Zero Installments: "
+    f"{zero_installments_df.count()}"
 )
 
 
@@ -463,6 +489,22 @@ clean_payments_df = clean_payments_df.withColumn(
     )
 
 )
+
+# =========================================================
+# ZERO INSTALLMENT Transformation
+# =========================================================
+
+clean_payments_df = clean_payments_df.withColumn(
+
+    "payment_installments",
+
+    when(
+        col("payment_installments") == 0,
+        1
+    )
+
+)
+
 
 
 # =========================================================
