@@ -92,7 +92,7 @@ def validate_critical_nulls(df):
 
         "converted_flag",
 
-        "acquisition_risk_category"
+        "seller_acquisition_segment"
     ]
 
     print("\nCritical Null Validation:")
@@ -161,8 +161,8 @@ def validate_acquisition_distribution(df):
 
 def validate_risk_distribution(df):
 
-    print("\nAcquisition Risk Distribution:")
+    print("\nAcquisition segment Distribution:")
 
     df.groupBy(
-        "acquisition_risk_category"
+        "seller_acquisition_segment"
     ).count().show(truncate=False)

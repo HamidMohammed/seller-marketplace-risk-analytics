@@ -85,6 +85,12 @@ DIM_SELLER_PATH = (
     config["paths"]["gold"]["dim_seller"]
 )
 
+SELLER_ACQUISITION_STAGING_PATH = (
+    config["paths"]["silver"][
+        "seller_acquisition_staging"
+    ]
+)
+
 SOURCE_SYSTEM = (
     config["metadata"]["source_system"]
 )
@@ -104,6 +110,57 @@ print("=" * 60)
 seller_df = spark.read.parquet(
     SILVER_SELLERS_PATH
 )
+
+seller_acquisition_df = spark.read.parquet(
+    SELLER_ACQUISITION_STAGING_PATH
+)
+
+seller_acquisition_df = seller_acquisition_df.select(
+
+    "seller_id",
+
+    col("marketing_origin"),
+
+    col("business_segment").alias(
+        "acquisition_business_segment"
+    ),
+
+    col("lead_type").alias(
+        "acquisition_lead_type"
+    ),
+
+    col("lead_behaviour_profile").alias(
+    "acquisition_lead_behaviour_profile"
+    ),
+
+    col("days_to_convert"),
+
+    col("converted_flag"),
+
+    col("seller_acquisition_segment")
+)
+
+seller_df = seller_df.join(
+
+    seller_acquisition_df,
+
+    on="seller_id",
+
+    how="left"
+)
+
+seller_df = seller_df.fillna({
+
+    "marketing_origin": "Not Tracked",
+
+    "acquisition_business_segment": "Not Tracked",
+
+    "acquisition_lead_type": "Not Tracked",
+
+    "acquisition_lead_behaviour_profile": "Not Tracked",
+
+    "seller_acquisition_segment": "Not Tracked"
+})
 
 print(
     f"Seller Count: {seller_df.count()}"
@@ -193,38 +250,6 @@ seller_df = seller_df.withColumn(
     )
 )
 
-# =====================================================
-# BUSINESS PROFILE
-# =====================================================
-
-seller_df = seller_df.withColumn(
-
-    "seller_business_profile",
-
-    when(
-        col("business_segment").isNull(),
-        "Unknown"
-
-    ).when(
-        col("lead_type").isin(
-            "industry",
-            "manufacturer"
-        ),
-
-        "Enterprise"
-
-    ).when(
-        col("lead_type").isin(
-            "reseller",
-            "online_medium"
-        ),
-
-        "Professional"
-
-    ).otherwise(
-        "Standard"
-    )
-)
 
 # =====================================================
 # SCD TYPE 2 COLUMNS
@@ -292,18 +317,27 @@ dim_seller_df = seller_df.select(
     "median_latitude",
 
     "median_longitude",
+    # =====================================================
+    # ACQUISITION ATTRIBUTES
+    # =====================================================
 
-    "seller_location_type",
+    "marketing_origin",
 
     "acquisition_source",
+    
+    "acquisition_business_segment",
 
-    "business_segment",
+    "acquisition_lead_type",
 
-    "lead_type",
+    "acquisition_lead_behaviour_profile",
 
-    "lead_behavior_profile",
+    "days_to_convert",
 
-    "seller_business_profile",
+    "converted_flag",
+
+    "seller_acquisition_segment",
+    
+    "seller_location_type",
 
     "effective_start_date",
 

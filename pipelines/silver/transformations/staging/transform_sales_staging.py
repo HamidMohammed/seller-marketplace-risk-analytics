@@ -99,6 +99,9 @@ SILVER_PAYMENTS_PATH = (
     config["paths"]["silver"]["payments"]
 )
 
+SILVER_ORDERS_PATH = (
+    config["paths"]["silver"]["orders"]
+)
 # ---------------------------------------------------------
 # Output Path
 # ---------------------------------------------------------
@@ -136,10 +139,23 @@ payments_df = spark.read.parquet(
     SILVER_PAYMENTS_PATH
 )
 
+orders_df = spark.read.parquet(
+    SILVER_ORDERS_PATH
+)
+
+
 print(f"Order Items Count: {order_items_df.count()}")
 print(f"Payments Count: {payments_df.count()}")
+print(f"Orders Count: {orders_df.count()}")
+# order_items_df.printSchema()
 
+orders_lookup_df = orders_df.select(
 
+    "order_id",
+
+    "customer_id"
+
+)
 # =========================================================
 # AGGREGATE PAYMENTS TO ORDER LEVEL
 # =========================================================
@@ -165,6 +181,22 @@ print(
     f"Aggregated Payment Orders: "
     f"{payments_agg_df.count()}"
 )
+
+print("\nPayment Installment Distribution:")
+
+payments_df.groupBy(
+    "payment_installments"
+).count().orderBy(
+    "payment_installments"
+).show(50)
+
+print("\nAggregated Installment Distribution:")
+
+payments_agg_df.groupBy(
+    "total_payment_installments"
+).count().orderBy(
+    "total_payment_installments"
+).show(50)
 
 
 # =========================================================
@@ -243,6 +275,15 @@ staging_df = staging_df.join(
     how="left"
 )
 
+staging_df = staging_df.join(
+
+    orders_lookup_df,
+
+    on="order_id",
+
+    how="left"
+
+)
 
 # =========================================================
 # PAYMENT ALLOCATION
@@ -260,6 +301,13 @@ staging_df = staging_df.withColumn(
     col("item_sales_ratio")
 )
 
+print("\nSales Staging Installments:")
+
+staging_df.groupBy(
+    "total_payment_installments"
+).count().orderBy(
+    "total_payment_installments"
+).show(50)
 
 # =========================================================
 # INSTALLMENT FLAG
@@ -334,11 +382,15 @@ staging_df = staging_df.select(
 
     "order_id",
 
+    "customer_id",
+
     "order_item_id",
 
     "product_id",
 
     "seller_id",
+
+    "order_purchase_timestamp",
 
     "shipping_limit_date",
 

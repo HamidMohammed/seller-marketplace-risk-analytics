@@ -472,6 +472,12 @@ clean_payments_df = clean_payments_df.withColumn(
 
 )
 
+print("\nInstallment Distribution:")
+
+clean_payments_df.groupBy(
+    "installment_flag"
+).count().show()
+
 
 # =========================================================
 # HIGH INSTALLMENT FLAG
@@ -501,10 +507,11 @@ clean_payments_df = clean_payments_df.withColumn(
     when(
         col("payment_installments") == 0,
         1
+    ).otherwise(
+        col("payment_installments")
     )
 
 )
-
 
 
 # =========================================================

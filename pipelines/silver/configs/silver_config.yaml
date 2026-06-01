@@ -60,6 +60,10 @@ paths:
     dim_customer: data/gold/dim_customer/
     dim_seller: data/gold/dim_seller/
     dim_product: data/gold/dim_product/
+    fct_order_delivery: data/gold/fct_order_delivery/
+    fct_seller_fulfillment: data/gold/fct_seller_fulfillment/
+    fct_customer_reviews: data/gold/fct_customer_reviews/
+    fct_order_sales: data/gold/fct_order_sales/
     
 
 metadata:
@@ -72,3 +76,45 @@ validation:
 
 logging:
   log_level: INFO
+
+
+silver_pipeline:
+  core:
+
+    - geolocation/transform_geolocation.py
+    - category_translation/transform_category_translation.py
+    - orders/transform_orders.py
+    - customers/transform_customers.py
+    - sellers/transform_sellers.py
+    - products/transform_products.py
+    - payments/transform_payments.py
+    - reviews/transform_reviews.py
+    - order_items/transform_order_items.py
+
+  marketing:
+
+    - mql/transform_mql.py
+    - closed_deals/transform_closed_deals.py
+
+  staging:
+
+    - staging/transform_seller_acquisition_staging.py
+    - staging/transform_order_delivery_staging.py
+    - staging/transform_seller_fulfillment_staging.py
+    - staging/transform_reviews_staging.py
+    - staging/transform_sales_staging.py
+
+  performance:
+
+    - staging/transform_seller_performance_monthly_staging.py
+
+
+orchestration:
+
+  stop_on_failure: true
+
+  run_marketing_layer: true
+
+  run_performance_layer: true
+
+  log_execution_time: true

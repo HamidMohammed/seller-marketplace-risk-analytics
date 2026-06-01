@@ -166,6 +166,11 @@ delivery_context_df = delivery_df.select(
 # =========================================================
 # JOIN REVIEWS + DELIVERY CONTEXT
 # =========================================================
+reviews_df = reviews_df.drop(
+    "delay_days",
+    "delivery_duration_days",
+    "delivery_status_category"
+)
 
 print("\n=================================================")
 print("JOINING DELIVERY CONTEXT")

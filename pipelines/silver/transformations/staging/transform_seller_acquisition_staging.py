@@ -50,7 +50,7 @@ from pyspark.sql.functions import (
     when,
     datediff,
     current_timestamp,
-    lit
+    lit,concat
 )
 
 from pipelines.silver.utils.config_loader import (
@@ -283,24 +283,17 @@ staging_df = staging_df.withColumn(
 
 
 # =========================================================
-# ACQUISITION RISK CATEGORY
+# SELLER ACQUISITION SEGMENT
 # =========================================================
 
 staging_df = staging_df.withColumn(
 
-    "acquisition_risk_category",
+    "seller_acquisition_segment",
 
+    # -------------------------------------
+    # Premium Prospects
+    # -------------------------------------
     when(
-        (
-            col("declared_monthly_revenue") < 10000
-        ) &
-        (
-            col("days_to_convert") > 30
-        ),
-
-        "High Risk"
-
-    ).when(
         (
             col("declared_monthly_revenue") >= 100000
         ) &
@@ -308,18 +301,84 @@ staging_df = staging_df.withColumn(
             col("days_to_convert") <= 7
         ),
 
-        "Premium"
+        "Premium Prospect"
+    )
 
-    ).when(
-        col("declared_monthly_revenue").isNull(),
+    # -------------------------------------
+    # Strategic Prospects
+    # -------------------------------------
+    .when(
+        (
+            col("declared_monthly_revenue") >= 100000
+        ) &
+        (
+            col("days_to_convert") > 7
+        ),
 
-        "Unknown"
+        "Strategic Prospect"
+    )
 
-    ).otherwise(
-        "Standard"
+    # -------------------------------------
+    # Growth Sellers
+    # -------------------------------------
+    .when(
+        (
+            col("declared_monthly_revenue") >= 10000
+        ) &
+        (
+            col("declared_monthly_revenue") < 100000
+        ),
+
+        "Growth Seller"
+    )
+
+    # -------------------------------------
+    # Small Business Sellers
+    # -------------------------------------
+    .when(
+        (
+            col("declared_monthly_revenue") > 0
+        ) &
+        (
+            col("declared_monthly_revenue") < 10000
+        ),
+
+        "Small Business"
+    )
+
+    # -------------------------------------
+    # Behavioral Fallback
+    # -------------------------------------
+    .when(
+        col("declared_monthly_revenue").isNull() &
+        col("lead_behaviour_profile").isNotNull(),
+
+        concat(
+            lit("Behavior: "),
+            col("lead_behaviour_profile")
+        )
+    )
+
+    # -------------------------------------
+    # Segment Fallback
+    # -------------------------------------
+    .when(
+        col("declared_monthly_revenue").isNull() &
+        col("business_segment").isNotNull(),
+
+        concat(
+            lit("Segment: "),
+            col("business_segment")
+        )
+    )
+
+    # -------------------------------------
+    # Unknown
+    # -------------------------------------
+    .otherwise(
+        "Unclassified"
     )
 )
-
 
 # =========================================================
 # METADATA ENRICHMENT
@@ -383,10 +442,10 @@ staging_df = staging_df.select(
 
     "high_value_seller_flag",
 
-    "acquisition_risk_category",
+    "seller_acquisition_segment",
 
     "silver_loaded_at",
-
+    
     "source_system",
 
     "transformation_version"

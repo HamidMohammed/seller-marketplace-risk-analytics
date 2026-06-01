@@ -1,0 +1,67 @@
+environment: local
+
+paths:
+  raw:
+    orders: data/raw/olist_orders_dataset.csv
+
+    order_items: data/raw/olist_order_items_dataset.csv
+
+    customers: data/raw/olist_customers_dataset.csv
+
+    sellers: data/raw/olist_sellers_dataset.csv
+
+    products: data/raw/olist_products_dataset.csv
+
+    payments: data/raw/olist_order_payments_dataset.csv
+
+    reviews: data/raw/olist_order_reviews_dataset.csv
+
+    geolocation: data/raw/olist_geolocation_dataset.csv
+
+    category_translation: data/raw/product_category_name_translation.csv
+
+    mql: data/raw/olist_marketing_qualified_leads_dataset.csv
+
+    closed_deals: data/raw/olist_closed_deals_dataset.csv
+
+  bronze:
+    orders: data/bronze/orders/
+
+    order_items: data/bronze/order_items/
+
+    customers: data/bronze/customers/
+
+    sellers: data/bronze/sellers/
+
+    products: data/bronze/products/
+
+    payments: data/bronze/payments/
+
+    reviews: data/bronze/reviews/
+
+    geolocation: data/bronze/geolocation/
+
+    category_translation: data/bronze/category_translation/
+
+    mql: data/bronze/mql/
+
+    closed_deals: data/bronze/closed_deals/
+
+bronze_pipeline:
+  ingestion:
+    - orders
+    - order_items
+    - customers
+    - sellers
+    - products
+    - payments
+    - reviews
+    - geolocation
+    - category_translation
+    - mql
+    - closed_deals
+
+orchestration:
+  stop_on_failure: true
+
+  log_execution_time: true

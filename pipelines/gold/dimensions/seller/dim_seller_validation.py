@@ -287,10 +287,4 @@ def validate_dimension_distribution(df):
         truncate=False
     )
 
-    print("\nSeller Business Profile Distribution:")
-
-    df.groupBy(
-        "seller_business_profile"
-    ).count().show(
-        truncate=False
-    )
+   

@@ -171,7 +171,7 @@ acquisition_df = closed_deals_df.select(
     col("seller_id"),
     col("business_segment"),
     col("lead_type"),
-    col("lead_behaviour_profile").alias("lead_behavior_profile")
+    col("lead_behaviour_profile").alias("lead_behaviour_profile")
 )
 
 # Join closed deals to MQL to get origin channel
@@ -338,7 +338,7 @@ silver_sellers_df = silver_sellers_df.join(
 silver_sellers_df = silver_sellers_df.fillna(
     "unknown", 
     subset=["acquisition_source", "business_segment", 
-            "lead_type", "lead_behavior_profile"]
+            "lead_type", "lead_behaviour_profile"]
 )
 
 
@@ -421,7 +421,7 @@ silver_sellers_df = silver_sellers_df.select(
 
     "lead_type",
 
-    "lead_behavior_profile",
+    "lead_behaviour_profile",
 
     # -----------------------------------------------------
     # Metadata

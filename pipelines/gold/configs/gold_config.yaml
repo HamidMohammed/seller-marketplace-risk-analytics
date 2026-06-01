@@ -1,0 +1,123 @@
+# =========================================================
+# GOLD LAYER CONFIGURATION
+# =========================================================
+
+environment: local
+
+# =========================================================
+# STORAGE PATHS
+# =========================================================
+
+paths:
+  silver:
+    order_delivery_staging: data/silver/order_delivery_staging/
+
+    seller_fulfillment_staging: data/silver/seller_fulfillment_staging/
+
+    reviews_staging: data/silver/reviews_staging/
+
+    sales_staging: data/silver/sales_staging/
+
+    seller_performance_monthly_staging: data/silver/seller_performance_monthly_staging/
+
+  gold:
+    # =====================================================
+    # DIMENSIONS
+    # =====================================================
+
+    dim_date: data/gold/dim_date/
+
+    dim_customer: data/gold/dim_customer/
+
+    dim_seller: data/gold/dim_seller/
+
+    dim_product: data/gold/dim_product/
+
+    # =====================================================
+    # FACTS
+    # =====================================================
+
+    fct_order_delivery: data/gold/fct_order_delivery/
+
+    fct_seller_fulfillment: data/gold/fct_seller_fulfillment/
+
+    fct_customer_reviews: data/gold/fct_customer_reviews/
+
+    fct_order_sales: data/gold/fct_order_sales/
+
+    # =====================================================
+    # FUTURE MARTS
+    # =====================================================
+
+    seller_performance_mart: data/gold/marts/seller_performance_mart/
+
+    delivery_performance_mart: data/gold/marts/delivery_performance_mart/
+
+    customer_satisfaction_mart: data/gold/marts/customer_satisfaction_mart/
+
+    sales_mart: data/gold/marts/sales_mart/
+
+    # =====================================================
+    # FUTURE SCORING LAYER
+    # =====================================================
+
+    seller_score_snapshot: data/gold/scoring/seller_score_snapshot/
+
+# =========================================================
+# PIPELINE ORCHESTRATION
+# =========================================================
+
+gold_pipeline:
+  dimensions:
+    - dimensions/date/build_dim_date.py
+    - dimensions/customer/build_dim_customer.py
+    - dimensions/seller/build_dim_seller.py
+    - dimensions/product/build_dim_product.py
+
+  facts:
+    - facts/order_delivery/build_fct_order_delivery.py
+    - facts/seller_fulfillment/build_fct_seller_fulfillment.py
+    - facts/customer_reviews/build_fct_customer_reviews.py
+    - facts/order_sales/build_fct_order_sales.py
+
+  marts: []
+
+  scoring: []
+
+# =========================================================
+# ORCHESTRATION SETTINGS
+# =========================================================
+
+orchestration:
+  stop_on_failure: true
+
+  run_marts: true
+
+  run_scoring: true
+
+  log_execution_time: true
+
+# =========================================================
+# METADATA
+# =========================================================
+
+metadata:
+  source_system: olist
+
+  transformation_version: v1
+
+# =========================================================
+# VALIDATION
+# =========================================================
+
+validation:
+  fail_on_duplicates: true
+
+  fail_on_null_business_keys: true
+
+# =========================================================
+# LOGGING
+# =========================================================
+
+logging:
+  log_level: INFO
