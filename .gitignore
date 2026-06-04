@@ -1,3 +1,4 @@
 data/
 list_files.py
 pipelines/silver/validations/__pycache__
+infrastructure/spark/jars/

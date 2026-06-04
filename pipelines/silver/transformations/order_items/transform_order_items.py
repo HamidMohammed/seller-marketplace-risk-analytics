@@ -64,7 +64,8 @@ from pyspark.sql.functions import (
 from pyspark.sql.types import DecimalType
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.utils.spark_session import (
@@ -95,28 +96,33 @@ config = load_config()
 # Bronze Paths
 # ---------------------------------------------------------
 
-BRONZE_ORDER_ITEMS_PATH = (
-    config["paths"]["bronze"]["order_items"]
+BRONZE_ORDER_ITEMS_PATH = resolve_path(
+    config["paths"]["bronze"]["order_items"],
+    config
 )
 
-BRONZE_PRODUCTS_PATH = (
-    config["paths"]["bronze"]["products"]
+BRONZE_PRODUCTS_PATH = resolve_path(
+    config["paths"]["bronze"]["products"],
+    config
 )
 
 # ---------------------------------------------------------
 # Silver Paths
 # ---------------------------------------------------------
 
-SILVER_ORDERS_PATH = (
-    config["paths"]["silver"]["orders"]
+SILVER_ORDERS_PATH = resolve_path(
+    config["paths"]["silver"]["orders"],
+    config
 )
 
-SILVER_ORDER_ITEMS_PATH = (
-    config["paths"]["silver"]["order_items"]
+SILVER_ORDER_ITEMS_PATH = resolve_path(
+    config["paths"]["silver"]["order_items"],
+    config
 )
 
-SILVER_ORDER_ITEMS_QUARANTINE_PATH = (
-    config["paths"]["silver"]["order_items_quarantine"]
+SILVER_ORDER_ITEMS_QUARANTINE_PATH = resolve_path(
+    config["paths"]["silver"]["order_items_quarantine"],
+    config
 )
 # ---------------------------------------------------------
 # Metadata Configuration

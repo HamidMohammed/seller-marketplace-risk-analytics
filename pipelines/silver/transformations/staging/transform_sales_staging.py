@@ -60,7 +60,8 @@ from pyspark.sql.functions import (
 from pyspark.sql.window import Window
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.utils.spark_session import (
@@ -91,23 +92,27 @@ config = load_config()
 # Silver Paths
 # ---------------------------------------------------------
 
-SILVER_ORDER_ITEMS_PATH = (
-    config["paths"]["silver"]["order_items"]
+SILVER_ORDER_ITEMS_PATH = resolve_path(
+    config["paths"]["silver"]["order_items"],
+    config
 )
 
-SILVER_PAYMENTS_PATH = (
-    config["paths"]["silver"]["payments"]
+SILVER_PAYMENTS_PATH = resolve_path(
+    config["paths"]["silver"]["payments"],
+    config
 )
 
-SILVER_ORDERS_PATH = (
-    config["paths"]["silver"]["orders"]
+SILVER_ORDERS_PATH = resolve_path(
+    config["paths"]["silver"]["orders"],
+    config
 )
 # ---------------------------------------------------------
 # Output Path
 # ---------------------------------------------------------
 
-SALES_STAGING_PATH = (
-    config["paths"]["silver"]["sales_staging"]
+SALES_STAGING_PATH = resolve_path(
+    config["paths"]["silver"]["sales_staging"],
+    config
 )
 
 # ---------------------------------------------------------

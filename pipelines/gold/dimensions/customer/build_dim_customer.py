@@ -53,7 +53,8 @@ from pipelines.silver.utils.spark_session import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.gold.dimensions.customer.dim_customer_validation import (
@@ -74,12 +75,14 @@ spark = create_spark_session(
 
 config = load_config()
 
-SILVER_CUSTOMERS_PATH = (
-    config["paths"]["silver"]["customers"]
+SILVER_CUSTOMERS_PATH = resolve_path(
+    config["paths"]["silver"]["customers"],
+    config
 )
 
-DIM_CUSTOMER_PATH = (
-    config["paths"]["gold"]["dim_customer"]
+DIM_CUSTOMER_PATH = resolve_path(
+    config["paths"]["gold"]["dim_customer"],
+    config
 )
 
 # =====================================================

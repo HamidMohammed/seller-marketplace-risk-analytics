@@ -54,7 +54,8 @@ from pyspark.sql.functions import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.utils.spark_session import (
@@ -85,26 +86,31 @@ config = load_config()
 # Silver Paths
 # ---------------------------------------------------------
 
-SILVER_MQL_PATH = (
-    config["paths"]["silver"]["mql"]
+SILVER_MQL_PATH = resolve_path(
+    config["paths"]["silver"]["mql"],
+    config
 )
 
-SILVER_CLOSED_DEALS_PATH = (
-    config["paths"]["silver"]["closed_deals"]
+SILVER_CLOSED_DEALS_PATH = resolve_path(
+    config["paths"]["silver"]["closed_deals"],
+    config
 )
 
-SILVER_SELLERS_PATH = (
-    config["paths"]["silver"]["sellers"]
+
+SILVER_SELLERS_PATH = resolve_path(
+    config["paths"]["silver"]["sellers"],
+    config
 )
 
 # ---------------------------------------------------------
 # Output Path
 # ---------------------------------------------------------
 
-SELLER_ACQUISITION_STAGING_PATH = (
+SELLER_ACQUISITION_STAGING_PATH = resolve_path(
     config["paths"]["silver"][
         "seller_acquisition_staging"
-    ]
+    ],
+    config
 )
 
 # ---------------------------------------------------------

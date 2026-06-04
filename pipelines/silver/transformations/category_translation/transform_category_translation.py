@@ -57,7 +57,8 @@ from pyspark.sql.functions import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.utils.spark_session import (
@@ -88,16 +89,18 @@ config = load_config()
 # Bronze Paths
 # ---------------------------------------------------------
 
-BRONZE_CATEGORY_TRANSLATION_PATH = (
-    config["paths"]["bronze"]["category_translation"]
+BRONZE_CATEGORY_TRANSLATION_PATH = resolve_path(
+    config["paths"]["bronze"]["category_translation"],
+    config
 )
 
 # ---------------------------------------------------------
 # Silver Paths
 # ---------------------------------------------------------
 
-SILVER_CATEGORY_TRANSLATION_PATH = (
-    config["paths"]["silver"]["category_translation"]
+SILVER_CATEGORY_TRANSLATION_PATH = resolve_path(
+    config["paths"]["silver"]["category_translation"],
+    config
 )
 
 # ---------------------------------------------------------

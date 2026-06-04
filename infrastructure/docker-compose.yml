@@ -1,0 +1,124 @@
+version: "3.8"
+
+services:
+  # ===================================================
+  # MINIO
+  # ===================================================
+
+  minio:
+    image: minio/minio
+
+    container_name: minio
+
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin123
+
+    command: server /data --console-address ":9001"
+
+    volumes:
+      - minio_data:/data
+
+  # ===================================================
+  # POSTGRES
+  # ===================================================
+
+  postgres:
+    image: postgres:16
+
+    container_name: olist-postgres
+
+    environment:
+      POSTGRES_DB: olist_dw
+
+      POSTGRES_USER: olist
+
+      POSTGRES_PASSWORD: olist123
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ===================================================
+  # PGADMIN
+  # ===================================================
+
+  pgadmin:
+    image: dpage/pgadmin4
+
+    container_name: olist-pgadmin
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@olist.com
+
+      PGADMIN_DEFAULT_PASSWORD: admin123
+
+    ports:
+      - "5050:80"
+
+    depends_on:
+      - postgres
+
+  # ===================================================
+  # SPARK MASTER
+  # ===================================================
+
+  spark-master:
+    environment:
+      SPARK_DOCKER: "true"
+    build:
+      context: ./spark
+
+    container_name: spark-master
+
+    hostname: spark-master
+
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.master.Master
+
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+
+    volumes:
+      - ../:/workspace/project
+
+      - ./spark/jobs:/opt/spark/jobs
+
+  spark-worker:
+    environment:
+      SPARK_DOCKER: "true"
+    build:
+      context: ./spark
+
+    container_name: spark-worker
+
+    hostname: spark-worker
+
+    depends_on:
+      - spark-master
+
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+
+    ports:
+      - "8081:8081"
+
+    volumes:
+      - ../:/workspace/project
+
+      - ./spark/jobs:/opt/spark/jobs
+
+volumes:
+  minio_data:
+
+  postgres_data:

@@ -54,13 +54,17 @@ from pyspark.sql.functions import (
 )
 
 from pipelines.gold.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.utils.spark_session import (
     create_spark_session
 )
 
+from pipelines.gold.validations.seller_performance_mart_validation import (
+    run_seller_performance_mart_validation
+)
 
 # =========================================================
 # CREATE SPARK SESSION
@@ -77,22 +81,25 @@ spark = create_spark_session(
 
 config = load_config()
 
-SELLER_PERFORMANCE_STAGING_PATH = (
+SELLER_PERFORMANCE_STAGING_PATH = resolve_path(
     config["paths"]["silver"][
         "seller_performance_monthly_staging"
-    ]
+    ],
+    config
 )
 
-DIM_SELLER_PATH = (
+DIM_SELLER_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_seller"
-    ]
+    ],
+    config
 )
 
-SELLER_PERFORMANCE_MART_PATH = (
+SELLER_PERFORMANCE_MART_PATH = resolve_path(
     config["paths"]["gold"][
         "seller_performance_mart"
-    ]
+    ],
+    config
 )
 
 SOURCE_SYSTEM = (
@@ -150,6 +157,20 @@ performance_df = performance_df.withColumnRenamed(
     "seller_sk_fk"
 )
 
+performance_df.select(
+    "on_time_rate"
+).describe().show()
+performance_df.select(
+    "avg_review_score"
+).describe().show()
+performance_df.select(
+    "volume_growth_rate"
+).describe().show()
+performance_df.select(
+    "avg_monthly_workload"
+).describe().show()
+print("\nCount of avg_monthly_workload is lower bec of nulls on new sellers which is 3,070")
+
 
 # =========================================================
 # REVIEW COMPONENT
@@ -164,28 +185,50 @@ performance_df = performance_df.withColumn(
     ) * 100
 )
 
+# =========================================================
+# ON-TIME COMPONENT
+# =========================================================
 
-# =========================================================
-# GROWTH COMPONENT
-# =========================================================
+performance_df = performance_df.withColumn(
+
+    "on_time_component",
+
+    col("on_time_rate") * 100
+)
+
+
 
 performance_df = performance_df.withColumn(
 
     "growth_component",
 
     when(
-        col("volume_growth_rate") >= 20,
+        col("seller_growth_category")
+        == "High Growth",
+
         100
 
     ).when(
-        col("volume_growth_rate") >= 0,
+        col("seller_growth_category")
+        == "Moderate Growth",
+
         80
 
     ).when(
-        col("volume_growth_rate") >= -20,
-        50
+        col("seller_growth_category")
+        == "Stable",
 
-    ).otherwise(20)
+        60
+
+    ).when(
+        col("seller_growth_category")
+        == "Declining",
+
+        30
+
+    ).otherwise(
+        50
+    )
 )
 
 
@@ -198,14 +241,23 @@ performance_df = performance_df.withColumn(
     "workload_component",
 
     when(
-        col("avg_monthly_workload") <= 20,
+        col("avg_monthly_workload") >= 20,
+
         100
 
     ).when(
-        col("avg_monthly_workload") <= 50,
+        col("avg_monthly_workload") >= 10,
+
         80
 
-    ).otherwise(60)
+    ).when(
+        col("avg_monthly_workload") >= 5,
+
+        60
+
+    ).otherwise(
+        40
+    )
 )
 
 
@@ -220,7 +272,7 @@ performance_df = performance_df.withColumn(
     round(
 
         (
-            col("on_time_rate") * 0.40
+            col("on_time_component") * 0.40
         ) +
 
         (
@@ -381,8 +433,24 @@ performance_df = performance_df.select(
 
 
 # =========================================================
+# VALIDATION
+# =========================================================
+
+print("\n=================================================")
+print("RUNNING MART VALIDATIONS")
+print("=================================================")
+
+run_seller_performance_mart_validation(
+    performance_df
+)
+
+# =========================================================
 # WRITE MART
 # =========================================================
+
+print("\n=================================================")
+print("WRITING SELLER PERFORMANCE MART")
+print("=================================================")
 
 performance_df.write.mode(
     "overwrite"
@@ -390,13 +458,37 @@ performance_df.write.mode(
     SELLER_PERFORMANCE_MART_PATH
 )
 
-
 print(
-    "\nSeller Performance Mart Written Successfully"
+    "Seller Performance Mart Written Successfully"
 )
 
+# =========================================================
+# FINAL SUMMARY
+# =========================================================
+
+print("\n=================================================")
+print("SELLER PERFORMANCE MART COMPLETED")
+print("=================================================")
+
 print(
-    f"Rows: {performance_df.count()}"
+    f"Final Row Count: "
+    f"{performance_df.count():,}"
+)
+
+print("\nRisk Distribution:")
+
+performance_df.groupBy(
+    "seller_risk_level"
+).count().show(
+    truncate=False
+)
+
+print("\nTier Distribution:")
+
+performance_df.groupBy(
+    "seller_rank_tier"
+).count().show(
+    truncate=False
 )
 
 performance_df.printSchema()

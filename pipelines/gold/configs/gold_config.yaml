@@ -1,8 +1,18 @@
+environment: minio
 # =========================================================
 # GOLD LAYER CONFIGURATION
 # =========================================================
 
-environment: local
+storage:
+  local:
+    bronze_prefix: data/bronze/
+    silver_prefix: data/silver/
+    gold_prefix: data/gold/
+
+  minio:
+    bronze_prefix: s3a://bronze/
+    silver_prefix: s3a://silver/
+    gold_prefix: s3a://gold/
 
 # =========================================================
 # STORAGE PATHS
@@ -80,7 +90,7 @@ gold_pipeline:
     - facts/customer_reviews/build_fct_customer_reviews.py
     - facts/order_sales/build_fct_order_sales.py
 
-  marts: []
+  marts: [marts/build_seller_performance_mart.py]
 
   scoring: []
 

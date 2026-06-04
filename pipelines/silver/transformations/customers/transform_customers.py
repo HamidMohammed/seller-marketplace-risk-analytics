@@ -59,7 +59,8 @@ from pyspark.sql.functions import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.utils.spark_session import (
@@ -90,20 +91,23 @@ config = load_config()
 # Bronze Paths
 # ---------------------------------------------------------
 
-BRONZE_CUSTOMERS_PATH = (
-    config["paths"]["bronze"]["customers"]
+BRONZE_CUSTOMERS_PATH = resolve_path(
+    config["paths"]["bronze"]["customers"],
+    config
 )
 
 # ---------------------------------------------------------
 # Silver Paths
 # ---------------------------------------------------------
 
-SILVER_GEOLOCATION_PATH = (
-    config["paths"]["silver"]["geolocation"]
+SILVER_GEOLOCATION_PATH = resolve_path(
+    config["paths"]["silver"]["geolocation"],
+    config
 )
 
-SILVER_CUSTOMERS_PATH = (
-    config["paths"]["silver"]["customers"]
+SILVER_CUSTOMERS_PATH = resolve_path(
+    config["paths"]["silver"]["customers"],
+    config
 )
 
 # ---------------------------------------------------------

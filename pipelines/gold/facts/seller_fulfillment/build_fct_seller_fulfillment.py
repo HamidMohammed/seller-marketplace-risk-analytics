@@ -60,7 +60,8 @@ from pipelines.silver.utils.spark_session import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.gold.facts.seller_fulfillment.fct_seller_fulfillment_validation import (
@@ -81,40 +82,46 @@ spark = create_spark_session(
 
 config = load_config()
 
-SELLER_FULFILLMENT_STAGING_PATH = (
+SELLER_FULFILLMENT_STAGING_PATH = resolve_path(
     config["paths"]["silver"][
         "seller_fulfillment_staging"
-    ]
+    ],
+    config
 )
 
-SILVER_PRODUCTS_PATH = (
+SILVER_PRODUCTS_PATH =  resolve_path(
     config["paths"]["silver"][
         "products"
-    ]
+    ],
+    config
 )
 
-DIM_SELLER_PATH = (
+DIM_SELLER_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_seller"
-    ]
+    ],
+    config
 )
 
-DIM_PRODUCT_PATH = (
+DIM_PRODUCT_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_product"
-    ]
+    ],
+    config
 )
 
-DIM_DATE_PATH = (
+DIM_DATE_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_date"
-    ]
+    ],
+    config
 )
 
-FCT_SELLER_FULFILLMENT_PATH = (
+FCT_SELLER_FULFILLMENT_PATH = resolve_path(
     config["paths"]["gold"][
         "fct_seller_fulfillment"
-    ]
+    ],
+    config
 )
 
 SOURCE_SYSTEM = (
@@ -314,41 +321,42 @@ fact_df = fact_df.withColumn(
     lit(TRANSFORMATION_VERSION)
 )
 
-fact_df.filter(
-col("product_sk_fk").isNull()
-).groupBy(
-    "product_id"
-).count().show(
-    50,
-    truncate=False
-)
-silver_products_df.filter(
+# fact_df.filter(
+# col("product_sk_fk").isNull()
+# ).groupBy(
+#     "product_id"
+# ).count().show(
+#     50,
+#     truncate=False
+# )
 
-    col("product_id").isin(
+# silver_products_df.filter(
 
-        "5eb564652db742ff8f28759cd8d2652a",
+#     col("product_id").isin(
 
-        "09ff539a621711667c43eba6a3bd8466"
+#         "5eb564652db742ff8f28759cd8d2652a",
 
-    )
+#         "09ff539a621711667c43eba6a3bd8466"
 
-).show(
-    truncate=False
-)
+#     )
 
-dim_product_df.filter(
+# ).show(
+#     truncate=False
+# )
 
-    col("product_id").isin(
+# dim_product_df.filter(
 
-        "5eb564652db742ff8f28759cd8d2652a",
+#     col("product_id").isin(
 
-        "09ff539a621711667c43eba6a3bd8466"
+#         "5eb564652db742ff8f28759cd8d2652a",
 
-    )
+#         "09ff539a621711667c43eba6a3bd8466"
 
-).show(
-    truncate=False
-)
+#     )
+
+# ).show(
+#     truncate=False
+# )
 
 # =====================================================
 # FINAL SELECT

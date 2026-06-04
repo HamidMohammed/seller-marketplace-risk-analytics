@@ -52,7 +52,8 @@ from pipelines.silver.utils.spark_session import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.gold.facts.order_sales.fct_order_sales_validation import (
@@ -73,40 +74,46 @@ spark = create_spark_session(
 
 config = load_config()
 
-SALES_STAGING_PATH = (
+SALES_STAGING_PATH = resolve_path(
     config["paths"]["silver"][
         "sales_staging"
-    ]
+    ],
+    config
 )
 
-DIM_PRODUCT_PATH = (
+DIM_PRODUCT_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_product"
-    ]
+    ],
+    config
 )
 
-DIM_SELLER_PATH = (
+DIM_SELLER_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_seller"
-    ]
+    ],
+    config
 )
 
-DIM_DATE_PATH = (
+DIM_DATE_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_date"
-    ]
+    ],
+    config
 )
 
-DIM_CUSTOMER_PATH = (
+DIM_CUSTOMER_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_customer"
-    ]
+    ],
+    config
 )
 
-FCT_ORDER_SALES_PATH = (
+FCT_ORDER_SALES_PATH = resolve_path(
     config["paths"]["gold"][
         "fct_order_sales"
-    ]
+    ],
+    config
 )
 
 SOURCE_SYSTEM = (

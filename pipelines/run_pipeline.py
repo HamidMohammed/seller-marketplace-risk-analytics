@@ -39,6 +39,12 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 
+IS_DOCKER = (
+    os.getenv(
+        "SPARK_DOCKER",
+        "false"
+    ).lower() == "true"
+)
 # =========================================================
 # PIPELINE EXECUTION HELPER
 # =========================================================
@@ -57,8 +63,21 @@ def run_pipeline_component(
 
     start_time = time.time()
 
+    command = (
+    [
+        "/opt/spark/bin/spark-submit",
+        script_path
+    ]
+    if IS_DOCKER
+    else
+    [
+        sys.executable,
+        script_path
+    ]
+    )
+
     result = subprocess.run(
-        [sys.executable, script_path],
+        command,
         cwd=project_root
     )
 
@@ -112,6 +131,12 @@ GOLD_PIPELINE = os.path.join(
     "run_gold_pipeline.py"
 )
 
+WAREHOUSE_LOAD = os.path.join(
+    project_root,
+    "infrastructure",
+    "postgres",
+    "load_gold_to_postgres.py"
+)
 
 # =========================================================
 # MASTER PIPELINE
@@ -152,6 +177,11 @@ try:
     run_pipeline_component(
         "Gold Pipeline",
         GOLD_PIPELINE
+    )
+    
+    run_pipeline_component(
+    "Warehouse Load",
+    WAREHOUSE_LOAD
     )
 
 except Exception as e:

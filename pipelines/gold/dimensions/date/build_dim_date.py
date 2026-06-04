@@ -59,7 +59,8 @@ from pipelines.silver.utils.spark_session import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.gold.dimensions.date.dim_date_validation import (
@@ -86,8 +87,9 @@ config = load_config()
 # Output Path
 # ---------------------------------------------------------
 
-DIM_DATE_PATH = (
-    config["paths"]["gold"]["dim_date"]
+DIM_DATE_PATH = resolve_path(
+    config["paths"]["gold"]["dim_date"],
+    config
 )
 
 # =========================================================

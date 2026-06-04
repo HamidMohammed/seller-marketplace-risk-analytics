@@ -1,4 +1,15 @@
-environment: local
+environment: minio
+
+storage:
+  local:
+    raw_prefix: data/raw/
+
+    bronze_prefix: data/bronze/
+
+  minio:
+    raw_prefix: /workspace/project/data/raw/
+
+    bronze_prefix: s3a://bronze/
 
 paths:
   raw:

@@ -63,7 +63,8 @@ from pyspark.sql.types import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.utils.spark_session import (
@@ -94,25 +95,30 @@ config = load_config()
 # Bronze Paths
 # ---------------------------------------------------------
 
-BRONZE_PRODUCTS_PATH = (
-    config["paths"]["bronze"]["products"]
+BRONZE_PRODUCTS_PATH = resolve_path(
+    config["paths"]["bronze"]["products"],
+    config
 )
 
-BRONZE_CATEGORY_TRANSLATION_PATH = (
-    config["paths"]["bronze"]["category_translation"]
+BRONZE_CATEGORY_TRANSLATION_PATH = resolve_path(
+    config["paths"]["bronze"]["category_translation"],
+    config
 )
 
 # ---------------------------------------------------------
 # Silver Paths
 # ---------------------------------------------------------
 
-SILVER_PRODUCTS_PATH = (
-    config["paths"]["silver"]["products"]
+SILVER_PRODUCTS_PATH = resolve_path(
+    config["paths"]["silver"]["products"],
+    config
 )
 
-SILVER_PRODUCTS_QUARANTINE_PATH = (
-    config["paths"]["silver"]["products_quarantine"]
+SILVER_PRODUCTS_QUARANTINE_PATH = resolve_path(
+    config["paths"]["silver"]["products_quarantine"],
+    config
 )
+
 
 # ---------------------------------------------------------
 # Metadata Configuration

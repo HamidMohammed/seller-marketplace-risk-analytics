@@ -62,7 +62,8 @@ from pyspark.sql.types import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.utils.spark_session import (
@@ -93,24 +94,28 @@ config = load_config()
 # Bronze Paths
 # ---------------------------------------------------------
 
-BRONZE_PAYMENTS_PATH = (
-    config["paths"]["bronze"]["payments"]
+BRONZE_PAYMENTS_PATH = resolve_path(
+    config["paths"]["bronze"]["payments"],
+    config
 )
 
 # ---------------------------------------------------------
 # Silver Paths
 # ---------------------------------------------------------
 
-SILVER_PAYMENTS_PATH = (
-    config["paths"]["silver"]["payments"]
+SILVER_PAYMENTS_PATH = resolve_path(
+    config["paths"]["silver"]["payments"],
+    config
 )
 
-SILVER_ORDERS_PATH = (
-    config["paths"]["silver"]["orders"]
+SILVER_ORDERS_PATH = resolve_path(
+    config["paths"]["silver"]["orders"],
+    config
 )
 
-SILVER_PAYMENTS_QUARANTINE_PATH = (
-    config["paths"]["silver"]["payments_quarantine"]
+SILVER_PAYMENTS_QUARANTINE_PATH = resolve_path(
+    config["paths"]["silver"]["payments_quarantine"],
+    config
 )
 
 # ---------------------------------------------------------

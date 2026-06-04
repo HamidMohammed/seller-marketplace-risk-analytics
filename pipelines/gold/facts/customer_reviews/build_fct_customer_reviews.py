@@ -59,7 +59,8 @@ from pipelines.silver.utils.spark_session import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.gold.facts.customer_reviews.fct_customer_reviews_validation import (
@@ -80,28 +81,32 @@ spark = create_spark_session(
 
 config = load_config()
 
-REVIEWS_STAGING_PATH = (
+REVIEWS_STAGING_PATH = resolve_path(
     config["paths"]["silver"][
         "reviews_staging"
-    ]
+    ],
+    config
 )
 
-DIM_SELLER_PATH = (
+DIM_SELLER_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_seller"
-    ]
+    ],
+    config
 )
 
-DIM_DATE_PATH = (
+DIM_DATE_PATH = resolve_path(
     config["paths"]["gold"][
         "dim_date"
-    ]
+    ],
+    config
 )
 
-FCT_CUSTOMER_REVIEWS_PATH = (
+FCT_CUSTOMER_REVIEWS_PATH = resolve_path(
     config["paths"]["gold"][
         "fct_customer_reviews"
-    ]
+    ],
+    config
 )
 
 SOURCE_SYSTEM = (

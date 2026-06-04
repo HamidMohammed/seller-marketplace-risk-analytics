@@ -57,7 +57,8 @@ from pyspark.sql.functions import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.silver.validations.orders_validation import (
@@ -83,16 +84,25 @@ spark = create_spark_session(
 
 config = load_config()
 
-BRONZE_ORDERS_PATH = (
-    config["paths"]["bronze"]["orders"]
+BRONZE_ORDERS_PATH = resolve_path(
+
+    config["paths"]["bronze"]["orders"],
+    config
+
 )
 
-SILVER_ORDERS_PATH = (
-    config["paths"]["silver"]["orders"]
+SILVER_ORDERS_PATH = resolve_path(
+
+    config["paths"]["silver"]["orders"],
+    config
+
 )
 
-SILVER_ORDERS_QUARANTINE_PATH = (
-    config["paths"]["silver"]["orders_quarantine"]
+SILVER_ORDERS_QUARANTINE_PATH = resolve_path(
+
+    config["paths"]["silver"]["orders_quarantine"],
+    config
+
 )
 
 SOURCE_SYSTEM = (

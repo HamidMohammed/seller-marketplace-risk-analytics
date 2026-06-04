@@ -16,3 +16,38 @@ def load_config():
         config = yaml.safe_load(file)
 
     return config
+
+def resolve_path(path: str, config):
+
+    environment = config["environment"]
+
+    if environment == "local":
+        return path
+
+    if environment == "minio":
+
+        path = path.replace(
+            "data/raw/",
+            "/workspace/project/data/raw/"
+        )
+
+        path = path.replace(
+            "data/bronze/",
+            "s3a://bronze/"
+        )
+
+        path = path.replace(
+            "data/silver/",
+            "s3a://silver/"
+        )
+
+        path = path.replace(
+            "data/gold/",
+            "s3a://gold/"
+        )
+
+        return path
+
+    raise ValueError(
+        f"Unsupported environment: {environment}"
+    )

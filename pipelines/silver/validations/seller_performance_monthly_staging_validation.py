@@ -36,6 +36,10 @@ def run_seller_performance_monthly_staging_validation(df):
     validate_growth_rate_logic(df)
 
     validate_performance_distribution(df)
+    
+    validate_growth_category_distribution(df)
+    
+    
 
     print("\n=================================================")
     print("ALL VALIDATIONS COMPLETED")
@@ -172,4 +176,18 @@ def validate_performance_distribution(df):
 
     df.groupBy(
         "seller_performance_category"
+    ).count().show(truncate=False)
+    
+# =========================================================
+# SELLLER GROWTH CATEGORY DISTRIBUTION
+# =========================================================
+
+def validate_growth_category_distribution(df):
+
+    print("\nGrowth Category Distribution:")  
+
+    print("\nPerformance Category Distribution:")
+
+    df.groupBy(
+        "seller_growth_category"
     ).count().show(truncate=False)

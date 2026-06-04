@@ -15,7 +15,8 @@ if project_root not in sys.path:
 
 
 from pipelines.bronze.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.bronze.utils.spark_session import (
@@ -34,13 +35,16 @@ spark = create_spark_session(
 
 for dataset in config["bronze_pipeline"]["ingestion"]:
 
-    source_path = (
-        config["paths"]["raw"][dataset]
+    source_path = resolve_path(
+        config["paths"]["raw"][dataset],
+        config
     )
 
-    target_path = (
-        config["paths"]["bronze"][dataset]
+    target_path = resolve_path(
+        config["paths"]["bronze"][dataset],
+        config
     )
+    
 
     ingest_dataset(
         spark=spark,

@@ -56,7 +56,8 @@ from pipelines.silver.utils.spark_session import (
 )
 
 from pipelines.silver.utils.config_loader import (
-    load_config
+    load_config,
+    resolve_path
 )
 
 from pipelines.gold.dimensions.seller.dim_seller_validation import (
@@ -77,18 +78,21 @@ spark = create_spark_session(
 
 config = load_config()
 
-SILVER_SELLERS_PATH = (
-    config["paths"]["silver"]["sellers"]
+SILVER_SELLERS_PATH = resolve_path(
+    config["paths"]["silver"]["sellers"],
+    config
 )
 
-DIM_SELLER_PATH = (
-    config["paths"]["gold"]["dim_seller"]
+DIM_SELLER_PATH = resolve_path(
+    config["paths"]["gold"]["dim_seller"],
+    config
 )
 
-SELLER_ACQUISITION_STAGING_PATH = (
+SELLER_ACQUISITION_STAGING_PATH = resolve_path(
     config["paths"]["silver"][
         "seller_acquisition_staging"
-    ]
+    ],
+    config
 )
 
 SOURCE_SYSTEM = (

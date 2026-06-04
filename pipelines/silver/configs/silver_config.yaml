@@ -1,8 +1,23 @@
+environment: minio
+
+
 # =========================================================
 # SILVER LAYER CONFIGURATION
 # =========================================================
 
-environment: local
+storage:
+
+  local:
+
+    bronze_prefix: data/bronze/
+    silver_prefix: data/silver/
+    gold_prefix: data/gold/
+
+  minio:
+
+    bronze_prefix: s3a://bronze/
+    silver_prefix: s3a://silver/
+    gold_prefix: s3a://gold/
 
 paths:
   bronze:
