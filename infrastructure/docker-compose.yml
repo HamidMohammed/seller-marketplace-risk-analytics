@@ -118,6 +118,79 @@ services:
 
       - ./spark/jobs:/opt/spark/jobs
 
+  # ===================================================
+  # AIRFLOW WEBSERVER
+  # ===================================================
+
+  airflow-webserver:
+    image: apache/airflow:2.10.5
+
+    user: "0:0"
+
+    container_name: airflow-webserver
+
+    restart: always
+
+    depends_on:
+      - postgres
+
+    env_file:
+      - ./airflow/.env
+
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://olist:olist123@postgres:5432/olist_dw
+
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+
+    command: webserver
+
+    ports:
+      - "8088:8080"
+
+    volumes:
+      - ../:/workspace/project
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # ===================================================
+  # AIRFLOW SCHEDULER
+  # ===================================================
+
+  airflow-scheduler:
+    image: apache/airflow:2.10.5
+
+    user: "0:0"
+
+    container_name: airflow-scheduler
+
+    restart: always
+
+    depends_on:
+      - airflow-webserver
+
+    env_file:
+      - ./airflow/.env
+
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://olist:olist123@postgres:5432/olist_dw
+
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+
+    command: scheduler
+
+    volumes:
+      - ../:/workspace/project
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+
 volumes:
   minio_data:
 
